@@ -20,120 +20,119 @@ import kotlin.random.Random
 
 object QuoterApi {
 
-    fun Route.quoter() =
-        route("quote") {
-            println("Hello, World, I'm quoter")
-            get("pos/{pos}") {
-                val pos = call.parameters["pos"]?.toIntOrNull() ?: return@get call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
-                call.respond(gson.toJson(buildResponse(quotesPayload = transaction {
-                    Quoter.select {
-                        Quoter.id eq pos
-                    }.map(::Quote)
-                })))
+    fun Route.quoter() = route("quote") {
+        println("Hello, World, I'm quoter")
+        get("pos/{pos}") {
+            val pos = call.parameters["pos"]?.toIntOrNull() ?: return@get call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
+            call.respond(gson.toJson(buildResponse(quotesPayload = transaction {
+                Quoter.select {
+                    Quoter.id eq pos
+                }.map(::Quote)
+            })))
+        }
+
+        get("random/{count?}") {
+            val count = Math.abs(call.parameters["count"]?.toIntOrNull() ?: 1)
+            val quotes = mutableListOf<Quote>()
+            transaction {
+                val max = Quoter.selectAll().count()
+                while (quotes.count() < count) {
+                    quotes.addAll(Quoter.select {
+                        Quoter.id eq Random.nextInt(max)
+                    }.map(::Quote))
+                }
+            }
+            call.respond(gson.toJson(buildResponse(quotesPayload = quotes)))
+        }
+
+        get("range/{from}/{to}") {
+            val from = call.parameters["from"]?.toIntOrNull()
+            val to = call.parameters["to"]?.toIntOrNull()
+
+            if (from == null || to == null) {
+                return@get call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
+            }
+            call.respond(gson.toJson(buildResponse(quotesPayload = transaction {
+                Quoter.select {
+                    (Quoter.id greaterEq from) and (Quoter.id less to)
+                }.map(::Quote)
+            })))
+        }
+
+        get("total") {
+            call.respond(transaction {
+                Quoter.selectAll().count().toString()
+            })
+        }
+
+        get("all") {
+            call.respond(gson.toJson(buildResponse(quotesPayload = transaction {
+                Quoter.selectAll().map(::Quote)
+            })))
+        }
+
+        post("add") { _ ->
+            val params = call.receiveParameters()
+            val key = params["key"]
+            val adder = params["adder"]
+            val author = params["author"]
+            val quote = params["quote"]
+
+            if (key == null || adder == null || author == null || quote == null) {
+                return@post call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
             }
 
-            get("random/{count?}") {
-                val count = Math.abs(call.parameters["count"]?.toIntOrNull() ?: 1)
-                val quotes = mutableListOf<Quote>()
+            if (!isKeyValid(key)) {
+                return@post call.respond(gson.toJson(buildResponse(true, "INCORRECT_KEY")))
+            }
+
+            try {
                 transaction {
-                    val max = Quoter.selectAll().count()
-                    while (quotes.count() < count) {
-                        quotes.addAll(Quoter.select {
-                            Quoter.id eq Random.nextInt(max)
-                        }.map(::Quote))
+                    Quoter.insert {
+                        it[Quoter.adder] = adder
+                        it[Quoter.author] = author
+                        it[Quoter.quote] = quote
                     }
                 }
-                call.respond(gson.toJson(buildResponse(quotesPayload = quotes)))
-            }
-
-            get("range/{from}/{to}") {
-                val from = call.parameters["from"]?.toIntOrNull()
-                val to = call.parameters["to"]?.toIntOrNull()
-
-                if (from == null || to == null) {
-                    return@get call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
-                }
-                call.respond(gson.toJson(buildResponse(quotesPayload = transaction {
-                    Quoter.select {
-                        (Quoter.id greaterEq from) and (Quoter.id less to)
-                    }.map(::Quote)
-                })))
-            }
-
-            get("total") {
-                call.respond(transaction {
-                    Quoter.selectAll().count().toString()
-                })
-            }
-
-            get("all") {
-                call.respond(gson.toJson(buildResponse(quotesPayload = transaction {
-                    Quoter.selectAll().map(::Quote)
-                })))
-            }
-
-            post("add") { _ ->
-                val params = call.receiveParameters()
-                val key = params["key"]
-                val adder = params["adder"]
-                val author = params["author"]
-                val quote = params["quote"]
-
-                if (key == null || adder == null || author == null || quote == null) {
-                    return@post call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
-                }
-
-                if (!isKeyValid(key)) {
-                    return@post call.respond(gson.toJson(buildResponse(true, "INCORRECT_KEY")))
-                }
-
-                try {
-                    transaction {
-                        Quoter.insert {
-                            it[Quoter.adder] = adder
-                            it[Quoter.author] = author
-                            it[Quoter.quote] = quote
-                        }
-                    }
-                    call.respond(HttpStatusCode.OK)
-                } catch(e: SQLException) {
-                    call.respond(HttpStatusCode.InternalServerError)
-                }
-            }
-
-            post("edit") { _ ->
-                val params = call.receiveParameters()
-                val key = params["key"]
-                val id = params["id"]?.toIntOrNull()
-                val editedBy = params["edited_by"]
-                val newText = params["new_text"]
-
-                if (key == null || id == null || editedBy == null || newText == null) {
-                    return@post call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
-                }
-
-                if (!isKeyValid(key)) {
-                    return@post call.respond(gson.toJson(buildResponse(true, "INCORRECT_KEY")))
-                }
-
-                try {
-                    val result = transaction {
-                        Quoter.update({ Quoter.id eq id }) {
-                            it[Quoter.editedBy] = editedBy
-                            it[Quoter.quote] = newText
-                            it[Quoter.editedAt] = Date().time
-                        }
-                    }
-                    if (result == 0) {
-                        call.respond(HttpStatusCode.NotFound)
-                    } else {
-                        call.respond(HttpStatusCode.OK)
-                    }
-                } catch(e: SQLException) {
-                    call.respond(HttpStatusCode.InternalServerError)
-                }
+                call.respond(HttpStatusCode.OK)
+            } catch(e: SQLException) {
+                call.respond(HttpStatusCode.InternalServerError)
             }
         }
+
+        post("edit") { _ ->
+            val params = call.receiveParameters()
+            val key = params["key"]
+            val id = params["id"]?.toIntOrNull()
+            val editedBy = params["edited_by"]
+            val newText = params["new_text"]
+
+            if (key == null || id == null || editedBy == null || newText == null) {
+                return@post call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
+            }
+
+            if (!isKeyValid(key)) {
+                return@post call.respond(gson.toJson(buildResponse(true, "INCORRECT_KEY")))
+            }
+
+            try {
+                val result = transaction {
+                    Quoter.update({ Quoter.id eq id }) {
+                        it[Quoter.editedBy] = editedBy
+                        it[Quoter.quote] = newText
+                        it[Quoter.editedAt] = Date().time
+                    }
+                }
+                if (result == 0) {
+                    call.respond(HttpStatusCode.NotFound)
+                } else {
+                    call.respond(HttpStatusCode.OK)
+                }
+            } catch(e: SQLException) {
+                call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
+    }
 
     private fun buildQuote(quote: Quote) = json {
         "id" to quote.id

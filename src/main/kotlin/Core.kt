@@ -1,4 +1,5 @@
 import api.ITHApi.ith
+import api.MusicApi.music
 import api.QuoterApi.quoter
 import com.gt22.uadam.utils.str
 import config.config
@@ -20,6 +21,7 @@ object Core {
                 route("api") {
                     quoter()
                     ith()
+                    music()
                 }
             }
         }
