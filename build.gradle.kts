@@ -1,0 +1,46 @@
+import org.jetbrains.kotlin.gradle.dsl.Coroutines
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+group = "UADAF-Website-Bakend"
+version = "1.0"
+
+val ktorVersion = "1.0.0-beta-3"
+
+plugins {
+    application
+    kotlin("jvm") version "1.3.0"
+}
+
+repositories {
+    mavenCentral()
+    jcenter()
+    maven { url = uri("https://dl.bintray.com/kotlin/ktor") }
+    maven { url = uri("https://dl.bintray.com/kotlin/kotlin-eap") }
+    maven { url = uri("https://dl.bintray.com/kotlin/exposed")}
+    maven { url = uri("http://52.48.142.75/maven") }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType<KotlinCompile>().all {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+application {
+    mainClassName = "CoreKt"
+}
+
+dependencies {
+    compile(kotlin("stdlib-jdk8"))
+    compile("io.ktor:ktor-server-netty:$ktorVersion")
+    compile("io.ktor:ktor-gson:$ktorVersion")
+    compile("ch.qos.logback:logback-classic:1.2.3")
+    compile("com.google.code.gson:gson:2.8.4")
+    compile("com.uadaf:uadamlib:1.3")
+    compile("org.jetbrains.exposed:exposed:0.10.4")
+    compile("mysql:mysql-connector-java:5.1.1")
+
+    testCompile(group = "junit", name = "junit", version = "4.12")
+}
