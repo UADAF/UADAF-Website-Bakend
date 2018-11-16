@@ -1,21 +1,21 @@
 package api
 
-import com.mysql.jdbc.SQLError
+import com.google.common.hash.Hashing
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
-import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.*
 import model.Quote
 import mysql.Quoter
-import mysql.Quoter.id
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import utils.Instances.gson
 import utils.array
 import utils.json
+import java.nio.charset.StandardCharsets
 import java.sql.SQLException
+import java.util.Date
 import kotlin.random.Random
 
 object QuoterApi {
@@ -27,7 +27,7 @@ object QuoterApi {
                 val pos = call.parameters["pos"]?.toIntOrNull() ?: return@get call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
                 call.respond(gson.toJson(buildResponse(quotesPayload = transaction {
                     Quoter.select {
-                        id eq pos
+                        Quoter.id eq pos
                     }.map(::Quote)
                 })))
             }
@@ -39,7 +39,7 @@ object QuoterApi {
                     val max = Quoter.selectAll().count()
                     while (quotes.count() < count) {
                         quotes.addAll(Quoter.select {
-                            id eq Random.nextInt(max)
+                            Quoter.id eq Random.nextInt(max)
                         }.map(::Quote))
                     }
                 }
@@ -55,7 +55,7 @@ object QuoterApi {
                 }
                 call.respond(gson.toJson(buildResponse(quotesPayload = transaction {
                     Quoter.select {
-                        (id greaterEq from) and (id less to)
+                        (Quoter.id greaterEq from) and (Quoter.id less to)
                     }.map(::Quote)
                 })))
             }
@@ -72,15 +72,21 @@ object QuoterApi {
                 })))
             }
 
-            post("add") {
+            post("add") { _ ->
                 val params = call.receiveParameters()
+                val key = params["key"]
                 val adder = params["adder"]
                 val author = params["author"]
                 val quote = params["quote"]
 
-                if (adder == null || author == null || quote == null) {
+                if (key == null || adder == null || author == null || quote == null) {
                     return@post call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
                 }
+
+                if (!isKeyValid(key)) {
+                    return@post call.respond(gson.toJson(buildResponse(true, "INCORRECT_KEY")))
+                }
+
                 try {
                     transaction {
                         Quoter.insert {
@@ -95,30 +101,38 @@ object QuoterApi {
                 }
             }
 
-            post("edit") {
+            post("edit") { _ ->
                 val params = call.receiveParameters()
-                val adder = params["adder"]
-                val author = params["author"]
-                val quote = params["quote"]
+                val key = params["key"]
+                val id = params["id"]?.toIntOrNull()
+                val editedBy = params["edited_by"]
+                val newText = params["new_text"]
 
-                if (adder == null || author == null || quote == null) {
+                if (key == null || id == null || editedBy == null || newText == null) {
                     return@post call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
                 }
+
+                if (!isKeyValid(key)) {
+                    return@post call.respond(gson.toJson(buildResponse(true, "INCORRECT_KEY")))
+                }
+
                 try {
-                    transaction {
-                        Quoter.insert {
-                            it[Quoter.adder] = adder
-                            it[Quoter.author] = author
-                            it[Quoter.quote] = quote
+                    val result = transaction {
+                        Quoter.update({ Quoter.id eq id }) {
+                            it[Quoter.editedBy] = editedBy
+                            it[Quoter.quote] = newText
+                            it[Quoter.editedAt] = Date().time
                         }
                     }
-                    call.respond(HttpStatusCode.OK)
+                    if (result == 0) {
+                        call.respond(HttpStatusCode.NotFound)
+                    } else {
+                        call.respond(HttpStatusCode.OK)
+                    }
                 } catch(e: SQLException) {
                     call.respond(HttpStatusCode.InternalServerError)
                 }
             }
-
-
         }
 
     private fun buildQuote(quote: Quote) = json {
@@ -130,7 +144,7 @@ object QuoterApi {
         "edited_at" to quote.editedAt
     }
 
-    private fun buildQuoteSquence(list: List<Quote>) = list.map(::buildQuote).asSequence()
+    private fun buildQuoteSequence(list: List<Quote>) = list.map(::buildQuote).asSequence()
 
     private fun buildResponse(error: Boolean = false, errorMsg: String = "", quotesPayload: List<Quote> = emptyList()) = json {
         "response" to {
@@ -138,9 +152,13 @@ object QuoterApi {
             if (error) {
                 "error_msg" to errorMsg
             } else {
-                "payload" to array(buildQuoteSquence(quotesPayload))
+                "payload" to array(buildQuoteSequence(quotesPayload))
             }
         }
     }
+
+    private fun isKeyValid(key: String) =
+            Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString() ==
+                    "bf077926f1f26e2e3552001461c1e51ec078c7d488f1519bd570cc86f0efeb1a"
 
 }

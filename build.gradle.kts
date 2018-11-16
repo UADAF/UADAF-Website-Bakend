@@ -41,6 +41,7 @@ dependencies {
     compile("com.uadaf:uadamlib:1.3")
     compile("org.jetbrains.exposed:exposed:0.10.4")
     compile("mysql:mysql-connector-java:5.1.1")
+    compile("com.google.guava:guava:25.0-jre")
 
     testCompile(group = "junit", name = "junit", version = "4.12")
 }
