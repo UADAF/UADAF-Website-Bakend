@@ -5,4 +5,3 @@ gradle/
 out/
 config.json
 .DS_Store
-gradlew*
