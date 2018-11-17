@@ -30,6 +30,7 @@ tasks.withType<KotlinCompile>().all {
 
 application {
     mainClassName = "CoreKt"
+    applicationName = "Bakend"
 }
 
 dependencies {
@@ -44,4 +45,18 @@ dependencies {
     compile("com.google.guava:guava:25.0-jre")
 
     testCompile(group = "junit", name = "junit", version = "4.12")
+}
+
+tasks {
+    withType<Jar> {
+        manifest {
+            attributes(mapOf("Main-Class" to "Core"))
+        }
+        archiveName = "${application.applicationName}-$version.jar"
+        from(configurations.compile.map {
+            if (it.isDirectory)
+                it
+            else zipTree(it)
+        })
+    }
 }
