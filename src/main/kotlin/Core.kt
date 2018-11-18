@@ -3,11 +3,14 @@ import api.MusicApi.music
 import api.QuoterApi.quoter
 import com.gt22.uadam.utils.str
 import config.config
+import io.ktor.http.content.files
+import io.ktor.http.content.static
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import org.jetbrains.exposed.sql.Database
+import web.QuoterWeb.quoterWeb
 
 object Core {
 
@@ -21,6 +24,12 @@ object Core {
                     quoter()
                     ith()
                     music()
+                }
+                route("web") {
+                    quoterWeb()
+                }
+                static("static") {
+                    files("styles")
                 }
             }
         }

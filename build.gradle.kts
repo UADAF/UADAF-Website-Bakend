@@ -18,6 +18,7 @@ repositories {
     maven { url = uri("https://dl.bintray.com/kotlin/kotlin-eap") }
     maven { url = uri("https://dl.bintray.com/kotlin/exposed")}
     maven { url = uri("http://52.48.142.75/maven") }
+    maven { url = uri("https://kotlin.bintray.com/kotlin-js-wrappers") }
 }
 
 java {
@@ -43,6 +44,8 @@ dependencies {
     compile("org.jetbrains.exposed:exposed:0.10.4")
     compile("mysql:mysql-connector-java:5.1.1")
     compile("com.google.guava:guava:25.0-jre")
+    compile("io.ktor:ktor-html-builder:$ktorVersion")
+    compile("org.jetbrains:kotlin-css-jvm:1.0.0-pre.31-kotlin-1.2.41")
 
     testCompile(group = "junit", name = "junit", version = "4.12")
 }
