@@ -11,8 +11,7 @@ import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.route
-import utils.Instances
-import utils.Instances.gson
+import utils.gson
 import utils.json
 import java.nio.file.Paths
 import config.config
@@ -36,7 +35,7 @@ object MusicApi {
             if (musicContext == null) {
                 return@get call.respond(gson.toJson(buildResponse(true, "MUSIC_CONTEXT_NULL")))
             }
-            val path = call.parameters.getAll("path")?.joinToString(separator = "/") ?: return@get call.respond(Instances.gson.toJson(buildResponse(true, "INVALID_PARAMS")))
+            val path = call.parameters.getAll("path")?.joinToString(separator = "/") ?: return@get call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
             call.respond(gson.toJson(musicContext.search(path).map(MusicApi::jsonifyBaseData)))
         }
     }

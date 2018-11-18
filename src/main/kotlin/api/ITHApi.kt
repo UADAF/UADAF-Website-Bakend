@@ -13,8 +13,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import utils.Instances
-import utils.Instances.gson
+import utils.gson
 import utils.json
 import java.sql.SQLException
 
@@ -22,7 +21,7 @@ object ITHApi {
 
     fun Route.ith() = route("ith") {
         get("login/{username}") {
-            val username = call.parameters["username"] ?: return@get call.respond(Instances.gson.toJson(buildResponse(true, "INVALID_PARAMS")))
+            val username = call.parameters["username"] ?: return@get call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
             val storyId: Int = transaction {
                 val id = Users.slice(Users.story).select { Users.user like username }.firstOrNull()?.get(Users.story)
                 if (id == null) {

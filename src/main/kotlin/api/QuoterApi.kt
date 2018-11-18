@@ -17,7 +17,7 @@ import model.Quote
 import mysql.Quoter
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
-import utils.Instances.gson
+import utils.gson
 import utils.array
 import utils.json
 import java.nio.charset.StandardCharsets

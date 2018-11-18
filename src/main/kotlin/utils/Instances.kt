@@ -3,8 +3,5 @@ package utils
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 
-object Instances {
-
-    val jsonParser by lazy { JsonParser() }
-    val gson by lazy { GsonBuilder().setPrettyPrinting().create() }
-}
+val jsonParser by lazy { JsonParser() }
+val gson by lazy { GsonBuilder().setPrettyPrinting().create() }
