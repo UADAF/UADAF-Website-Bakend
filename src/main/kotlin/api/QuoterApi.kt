@@ -2,10 +2,17 @@ package api
 
 import com.google.common.hash.Hashing
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.HttpStatusCode.Companion.BadRequest
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
+import io.ktor.http.HttpStatusCode.Companion.NotFound
+import io.ktor.http.HttpStatusCode.Companion.OK
+import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
-import io.ktor.routing.*
+import io.ktor.routing.Route
+import io.ktor.routing.get
+import io.ktor.routing.post
+import io.ktor.routing.route
 import model.Quote
 import mysql.Quoter
 import org.jetbrains.exposed.sql.*
@@ -13,7 +20,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import utils.Instances.gson
 import utils.array
 import utils.json
-import java.lang.Exception
 import java.nio.charset.StandardCharsets
 import java.sql.SQLException
 import java.util.Date
@@ -21,74 +27,60 @@ import kotlin.random.Random
 
 object QuoterApi {
 
-    fun getByPos(pos: Int): List<Quote> {
-        return transaction {
-            Quoter.select { Quoter.id eq pos }.map(::Quote)
+    fun getByPos(pos: Int): List<Quote> = transaction {
+        Quoter.select { Quoter.id eq pos }.map(::Quote)
+    }
+
+    fun getTotal(): Int = Quoter.selectAll().count()
+
+    fun getRandom(count: Int): List<Quote> = transaction {
+        val quotes = mutableSetOf<Quote>()
+        val max = getTotal()
+        while (quotes.count() < count) {
+            quotes.addAll(Quoter.select {
+                Quoter.id eq Random.nextInt(max)
+            }.map(::Quote))
+        }
+        quotes.toList()
+    }
+
+    fun getRange(from: Int, to: Int): List<Quote> = transaction {
+        Quoter.select {
+            (Quoter.id greaterEq from) and (Quoter.id lessEq to)
+        }.map(::Quote)
+    }
+
+    fun getAll(): List<Quote> = transaction {
+        Quoter.selectAll().map(::Quote)
+    }
+
+    fun addQuote(adder: String, author: String, quote: String): Unit = transaction {
+        Quoter.insert {
+            it[Quoter.adder] = adder
+            it[Quoter.author] = author
+            it[Quoter.quote] = quote
         }
     }
 
-    fun getTotal(): Int {
-        return Quoter.selectAll().count()
-    }
-
-    fun getRandom(count: Int): List<Quote> {
-        val quotes = mutableListOf<Quote>()
-        transaction {
-            val max = getTotal()
-            while (quotes.count() < count) {
-                quotes.addAll(Quoter.select {
-                    Quoter.id eq Random.nextInt(max)
-                }.map(::Quote))
-            }
+    fun editQuote(id: Int, editedBy: String, editedAt: Long, newText: String): Boolean = transaction {
+        Quoter.update({ Quoter.id eq id }) {
+            it[Quoter.editedBy] = editedBy
+            it[Quoter.quote] = newText
+            it[Quoter.editedAt] = editedAt
         }
-        return quotes
-    }
-
-    fun getRange(from: Int, to: Int): List<Quote> {
-        return transaction {
-            Quoter.select {
-                (Quoter.id greaterEq from) and (Quoter.id lessEq to)
-            }.map(::Quote)
-        }
-    }
-
-    fun getAll(): List<Quote> {
-        return transaction {
-            Quoter.selectAll().map(::Quote)
-        }
-    }
-
-    fun addQuote(adder: String, author: String, quote: String) {
-        transaction {
-            Quoter.insert {
-                it[Quoter.adder] = adder
-                it[Quoter.author] = author
-                it[Quoter.quote] = quote
-            }
-        }
-    }
-
-    fun editQuote(id: Int, editedBy: String, editedAt: Long, newText: String): Boolean {
-        return transaction {
-            Quoter.update({ Quoter.id eq id }) {
-                it[Quoter.editedBy] = editedBy
-                it[Quoter.quote] = newText
-                it[Quoter.editedAt] = editedAt
-            }
-        } != 0
-    }
+    } != 0
 
     fun Route.quoter() = route("quote") {
         get("pos/{pos}") {
-            val pos = call.parameters["pos"]?.toIntOrNull() ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val pos = call.parameters["pos"]?.toIntOrNull() ?: return@get call.respond(BadRequest)
             try {
                 val result = getByPos(pos)
                 if (result.isEmpty())
-                    return@get call.respond(HttpStatusCode.NotFound)
+                    return@get call.respond(NotFound)
 
                 call.respond(gson.toJson(buildQuote(result[0])))
             } catch (e: Exception) {
-                return@get call.respond(HttpStatusCode.InternalServerError)
+                return@get call.respond(InternalServerError)
             }
         }
 
@@ -98,19 +90,19 @@ object QuoterApi {
                 val quotes = getRandom(count)
                 call.respond(gson.toJson(buildQuoteSequence(quotes)))
             }catch (e: Exception) {
-                return@get call.respond(HttpStatusCode.InternalServerError)
+                return@get call.respond(InternalServerError)
             }
         }
 
         get("range/{from}/{to}") {
-            val from = call.parameters["from"]?.toIntOrNull() ?: return@get call.respond(HttpStatusCode.NotFound)
-            val to = call.parameters["to"]?.toIntOrNull() ?: return@get call.respond(HttpStatusCode.NotFound)
+            val from = call.parameters["from"]?.toIntOrNull() ?: return@get call.respond(NotFound)
+            val to = call.parameters["to"]?.toIntOrNull() ?: return@get call.respond(NotFound)
 
             try {
                 val quotes = getRange(from, to)
                 call.respond(gson.toJson(buildQuoteSequence(quotes)))
             }catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
 
@@ -118,7 +110,7 @@ object QuoterApi {
             try {
                 call.respond(getTotal())
             }catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
 
@@ -127,48 +119,48 @@ object QuoterApi {
                 val quotes = getAll()
                 call.respond(gson.toJson(buildQuoteSequence(quotes)))
             }catch (e: Exception) {
-                return@get call.respond(HttpStatusCode.InternalServerError)
+                return@get call.respond(InternalServerError)
             }
         }
 
-        post("add") { _ ->
+        post("add") {
             val params = call.receiveParameters()
-            val key = params["key"] ?: return@post call.respond(HttpStatusCode.BadRequest)
-            val adder = params["adder"] ?: return@post call.respond(HttpStatusCode.BadRequest)
-            val author = params["author"] ?: return@post call.respond(HttpStatusCode.BadRequest)
-            val quote = params["quote"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+            val key = params["key"] ?: return@post call.respond(BadRequest)
+            val adder = params["adder"] ?: return@post call.respond(BadRequest)
+            val author = params["author"] ?: return@post call.respond(BadRequest)
+            val quote = params["quote"] ?: return@post call.respond(BadRequest)
 
             if (!isKeyValid(key)) {
-                return@post call.respond(HttpStatusCode.Unauthorized)
+                return@post call.respond(Unauthorized)
             }
             try {
                 addQuote(adder, author, quote)
-                call.respond(HttpStatusCode.OK)
+                call.respond(OK)
             } catch(e: SQLException) {
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
 
-        post("edit") { _ ->
+        post("edit") {
             val params = call.receiveParameters()
-            val key = params["key"] ?: return@post call.respond(HttpStatusCode.BadRequest)
-            val id = params["id"]?.toIntOrNull() ?: return@post call.respond(HttpStatusCode.BadRequest)
-            val editedBy = params["edited_by"] ?: return@post call.respond(HttpStatusCode.BadRequest)
-            val newText = params["new_text"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+            val key = params["key"] ?: return@post call.respond(BadRequest)
+            val id = params["id"]?.toIntOrNull() ?: return@post call.respond(BadRequest)
+            val editedBy = params["edited_by"] ?: return@post call.respond(BadRequest)
+            val newText = params["new_text"] ?: return@post call.respond(BadRequest)
 
             if (!isKeyValid(key)) {
-                return@post call.respond(HttpStatusCode.Unauthorized)
+                return@post call.respond(Unauthorized)
             }
 
             try {
                 val result = editQuote(id, editedBy, Date().time, newText)
                 if (result) {
-                    call.respond(HttpStatusCode.OK)
+                    call.respond(OK)
                 } else {
-                    call.respond(HttpStatusCode.NotFound)
+                    call.respond(NotFound)
                 }
             } catch(e: SQLException) {
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
     }
@@ -182,8 +174,7 @@ object QuoterApi {
         "edited_at" to quote.editedAt
     }
 
-    private fun buildQuoteSequence(list: List<Quote>) =
-            array(list.map(::buildQuote).asSequence())
+    private fun buildQuoteSequence(list: List<Quote>) = array(list.map(::buildQuote).asSequence())
 
     private fun isKeyValid(key: String) =
             Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString() ==

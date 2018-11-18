@@ -21,14 +21,14 @@ import java.sql.SQLException
 object ITHApi {
 
     fun Route.ith() = route("ith") {
-        get("login/{username}") { _ ->
+        get("login/{username}") {
             val username = call.parameters["username"] ?: return@get call.respond(Instances.gson.toJson(buildResponse(true, "INVALID_PARAMS")))
             val storyId: Int = transaction {
                 val id = Users.slice(Users.story).select { Users.user like username }.firstOrNull()?.get(Users.story)
                 if (id == null) {
-                    Users.insert {
-                        it[Users.user] = username
-                        it[Users.story] = 1
+                    Users.insert { u ->
+                        u[user] = username
+                        u[story] = 1
                     }
                     return@transaction 1
                 }
@@ -36,18 +36,18 @@ object ITHApi {
             }
             call.respond(gson.toJson(buildResponse(payloadUsername = username, payloadStoryId = storyId)))
         }
-        post("set") { _ ->
+        post("set") {
             val params = call.receiveParameters()
             val username = params["username"]
             val userId = params["storyId"]?.toIntOrNull()
 
             if (username == null || userId == null) {
-                return@post call.respond(Instances.gson.toJson(buildResponse(true, "INVALID_PARAMS")))
+                return@post call.respond(gson.toJson(buildResponse(true, "INVALID_PARAMS")))
             }
             try {
                 transaction {
-                    Users.update({ Users.user eq username }) {
-                        it[Users.story] = userId
+                    Users.update({ Users.user eq username }) { u ->
+                        u[story] = userId
                     }
                 }
                 call.respond(HttpStatusCode.OK)

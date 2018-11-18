@@ -25,4 +25,13 @@ data class Quote(
             (row[Quoter.editedBy] ?: "null"),
             (row[Quoter.editedAt] ?: -1))
 
+
+    override fun equals(other: Any?): Boolean {
+        return other is Quote && id == other.id
+    }
+
+    override fun hashCode(): Int {
+        return 7 * id.hashCode()
+    }
+
 }
