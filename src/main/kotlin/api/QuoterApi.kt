@@ -1,6 +1,7 @@
 package api
 
 import com.google.common.hash.Hashing
+import dao.Quoter
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.http.HttpStatusCode.Companion.InternalServerError
@@ -14,12 +15,8 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
 import model.Quote
-import mysql.Quoter
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
-import utils.gson
-import utils.array
-import utils.json
 import java.nio.charset.StandardCharsets
 import java.sql.SQLException
 import java.util.Date
@@ -78,7 +75,7 @@ object QuoterApi {
                 if (result.isEmpty())
                     return@get call.respond(NotFound)
 
-                call.respond(gson.toJson(buildQuote(result[0])))
+                call.respond(result[0])
             } catch (e: Exception) {
                 return@get call.respond(InternalServerError)
             }
@@ -88,7 +85,7 @@ object QuoterApi {
             val count = Math.abs(call.parameters["count"]?.toIntOrNull() ?: 1)
             try {
                 val quotes = getRandom(count)
-                call.respond(gson.toJson(buildQuoteSequence(quotes)))
+                call.respond(quotes)
             }catch (e: Exception) {
                 return@get call.respond(InternalServerError)
             }
@@ -100,7 +97,7 @@ object QuoterApi {
 
             try {
                 val quotes = getRange(from, to)
-                call.respond(gson.toJson(buildQuoteSequence(quotes)))
+                call.respond(quotes)
             }catch (e: Exception) {
                 call.respond(InternalServerError)
             }
@@ -117,7 +114,7 @@ object QuoterApi {
         get("all") {
             try {
                 val quotes = getAll()
-                call.respond(gson.toJson(buildQuoteSequence(quotes)))
+                call.respond(quotes)
             }catch (e: Exception) {
                 return@get call.respond(InternalServerError)
             }
@@ -165,16 +162,16 @@ object QuoterApi {
         }
     }
 
-    private fun buildQuote(quote: Quote) = json {
-        "id" to quote.id
-        "adder" to quote.adder
-        "author" to quote.author
-        "quote" to quote.quote
-        "edited_by" to quote.editedBy
-        "edited_at" to quote.editedAt
-    }
+//    private fun buildQuote(quote: Quote) = json {
+//        "id" to quote.id
+//        "adder" to quote.adder
+//        "author" to quote.author
+//        "quote" to quote.quote
+//        "edited_by" to quote.editedBy
+//        "edited_at" to quote.editedAt
+//    }
 
-    private fun buildQuoteSequence(list: List<Quote>) = array(list.map(::buildQuote).asSequence())
+//    private fun buildQuoteSequence(list: List<Quote>) = list.map(::buildQuote)
 
     private fun isKeyValid(key: String) =
             Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString() ==

@@ -1,4 +1,4 @@
-package mysql
+package dao
 
 import org.jetbrains.exposed.sql.Table
 
