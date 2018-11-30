@@ -40,7 +40,7 @@ dependencies {
     compile("io.ktor:ktor-gson:$ktorVersion")
     compile("ch.qos.logback:logback-classic:1.2.3")
     compile("com.google.code.gson:gson:2.8.4")
-    compile("com.uadaf:uadamlib:1.3")
+    compile("com.uadaf:uadamlib:1.4.1")
     compile("org.jetbrains.exposed:exposed:0.10.4")
     compile("mysql:mysql-connector-java:5.1.1")
     compile("com.google.guava:guava:25.0-jre")

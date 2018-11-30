@@ -41,11 +41,11 @@ object MusicApi {
         }
     }
 
-    private fun jsonifyBaseData(data: BaseData): JsonElement = json {
+    private fun jsonifyBaseData(data: BaseData<*>): JsonElement = json {
         "type" to data::class.java.simpleName
         "meta" to getMeta(data)
         if (data is Album) {
-            "children" to data.children.values.asSequence().map(BaseData::name).map(::JsonPrimitive)
+            "children" to data.children.values.asSequence().map(BaseData<*>::name).map(::JsonPrimitive)
         } else {
             if (data.children.isNotEmpty()) {
                 "children" to {
@@ -55,7 +55,7 @@ object MusicApi {
         }
     }
 
-    private fun getMeta(data: BaseData) = json {
+    private fun getMeta(data: BaseData<*>) = json {
         "title" to data.title
         if (data.format != data.parent?.format) "format" to data.format
         if (data.img != data.parent?.img) "img" to data.img
