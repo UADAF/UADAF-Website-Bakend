@@ -14,8 +14,12 @@ import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
+import io.ktor.util.toMap
+import kotlinx.css.em
 import model.Quote
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.nio.charset.StandardCharsets
 import java.sql.SQLException
@@ -118,6 +122,52 @@ object QuoterApi {
             }catch (e: Exception) {
                 return@get call.respond(InternalServerError)
             }
+        }
+
+        get("search") {
+            val ids = call.parameters["ids"]
+                    ?.split(",")
+                    ?.filter { s -> s.toIntOrNull() != null }
+                    ?.map(String::toInt)
+                    ?: emptyList()
+
+            val adders = call.parameters["adders"]
+                    ?.split(",")
+                    ?: emptyList()
+
+            val authors = call.parameters["authors"]
+                    ?.split(",")
+                    ?: emptyList()
+
+            val editors = call.parameters["editors"]
+                    ?.split(",")
+                    ?: emptyList()
+
+            val edited = call.parameters["edited"]?.toBoolean()
+            val text = call.parameters["text"] ?: ""
+
+            val list: ArrayList<Op<Boolean>> = ArrayList()
+
+            if (ids.isNotEmpty())
+                list.add(Quoter.id inList ids)
+            if (authors.isNotEmpty())
+                list.add(Quoter.author inList authors)
+            if (adders.isNotEmpty())
+                list.add(Quoter.adder inList adders)
+            if (text.isNotEmpty())
+                list.add(Quoter.quote like "%$text%")
+            if (editors.isNotEmpty())
+                list.add(Quoter.editedBy inList editors)
+            if(edited != null )
+                list.add(if (edited) IsNotNullOp(Quoter.editedBy) else IsNullOp(Quoter.editedBy))
+
+            if (list.isEmpty())
+                return@get call.respond(emptyList<Quote>())
+
+            val result = transaction {
+                Quoter.select { list.reduce { op1, op2 -> op1 and op2 } }.map(::Quote)
+            }
+            call.respond(result)
         }
 
         post("add") {
