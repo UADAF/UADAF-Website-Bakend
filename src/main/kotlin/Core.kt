@@ -20,7 +20,7 @@ import java.io.File
 object Core {
 
     val config =  jsonParser.parse(File("config.json").readText()).obj
-    private val connectUrl = "jdbc:mysql://${config["host"]!!.str}:3306/${config["database"]!!.str}?useUnicode=yes&characterEncoding=UTF-8&autoReconnect=true"
+    private val connectUrl = "jdbc:mysql://${config["host"]!!.str}:3306/${config["database"]!!.str}?useUnicode=yes&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=UTC"
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -45,7 +45,7 @@ object Core {
                 }
             }
         }
-        Database.connect(connectUrl, "com.mysql.jdbc.Driver", config["user"]!!.str, config["pass"]!!.str)
+        Database.connect(connectUrl, "com.mysql.cj.jdbc.Driver", config["user"]!!.str, config["pass"]!!.str)
         server.start(wait = true)
     }
 

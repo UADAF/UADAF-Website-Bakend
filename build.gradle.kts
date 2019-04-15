@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.Coroutines
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "UADAF-Website-Bakend"
-version = "1.0"
+version = "1.1"
 
 val ktorVersion = "1.0.0-beta-3"
 
@@ -42,7 +42,7 @@ dependencies {
     compile("com.google.code.gson:gson:2.8.4")
     compile("com.uadaf:uadamlib:1.4.1")
     compile("org.jetbrains.exposed:exposed:0.10.4")
-    compile("mysql:mysql-connector-java:5.1.1")
+    compile("mysql:mysql-connector-java:6.0.6")
     compile("com.google.guava:guava:25.0-jre")
     compile("io.ktor:ktor-html-builder:$ktorVersion")
     compile("org.jetbrains:kotlin-css-jvm:1.0.0-pre.31-kotlin-1.2.41")
