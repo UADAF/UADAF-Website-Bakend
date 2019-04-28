@@ -39,9 +39,9 @@ object QuoterV2 : Table("quotes") {
     val author = text("author")
     val date = datetime("date")
     val content = text("content")
-    val editedBy = text("edited_by")
-    val editedAt = long("edited_at")
-    val previousContent = text("previous_content")
+    val editedBy = text("edited_by").nullable()
+    val editedAt = long("edited_at").nullable()
+    val previousContent = text("previous_content").nullable()
     val attachments = text("attachments")
 }
 
