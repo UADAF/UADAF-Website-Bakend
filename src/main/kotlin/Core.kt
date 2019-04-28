@@ -1,6 +1,6 @@
-import api.ITHApi.ith
-import api.MusicApi.music
-import api.QuoterApi.quoter
+import api.AttachmentsApi.attachments
+import api.QuoterV2Api.quoterV2
+import com.google.common.hash.Hashing
 import com.gt22.uadam.utils.obj
 import com.gt22.uadam.utils.str
 import io.ktor.application.install
@@ -14,8 +14,8 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import org.jetbrains.exposed.sql.Database
 import utils.jsonParser
-import web.QuoterWeb.quoterWeb
 import java.io.File
+import java.nio.charset.StandardCharsets
 
 object Core {
 
@@ -33,12 +33,10 @@ object Core {
             }
             routing{
                 route("api") {
-                    quoter()
-                    ith()
-                    music()
+                    attachments()
+                    quoterV2()
                 }
                 route("web") {
-                    quoterWeb()
                 }
                 static("static") {
                     files("styles")
@@ -47,6 +45,11 @@ object Core {
         }
         Database.connect(connectUrl, "com.mysql.cj.jdbc.Driver", config["user"]!!.str, config["pass"]!!.str)
         server.start(wait = true)
+    }
+
+    fun verifyKey(key: String): Boolean {
+        return Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString() ==
+                "bf077926f1f26e2e3552001461c1e51ec078c7d488f1519bd570cc86f0efeb1a"
     }
 
 }

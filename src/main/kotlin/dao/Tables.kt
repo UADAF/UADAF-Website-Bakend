@@ -33,3 +33,20 @@ object Users : Table("users") {
     val rate = integer("rate")
 }
 
+object QuoterV2 : Table("quotes") {
+    val id = integer("id").primaryKey().autoIncrement()
+    val adder = text("adder")
+    val author = text("author")
+    val date = datetime("date")
+    val content = text("content")
+    val editedBy = text("edited_by")
+    val editedAt = long("edited_at")
+    val previousContent = text("previous_content")
+    val attachments = text("attachments")
+}
+
+object Attachments : Table("attachments") {
+    val id = text("id")
+    val type = text("type")
+    val data = blob("data")
+}
