@@ -43,6 +43,10 @@ object AttachmentsApi {
         }
     }
 
+    fun isExists(id: String): Boolean = transaction {
+        Attachments.select { Attachments.id eq id }.count() > 0
+    }
+
     fun Route.attachments() = route("attachments") {
         put("/") {
             val key = call.request.header("Access-Key")
