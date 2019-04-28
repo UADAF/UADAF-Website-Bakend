@@ -7,10 +7,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.request.header
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
-import io.ktor.routing.Route
-import io.ktor.routing.get
-import io.ktor.routing.put
-import io.ktor.routing.route
+import io.ktor.routing.*
 import io.ktor.util.pipeline.PipelineContext
 import model.QuoteV2
 import org.jetbrains.exposed.sql.*
@@ -62,6 +59,16 @@ object QuoterV2Api {
         oldAttachments.add(attachment)
         val newAttachments = oldAttachments.joinToString(";")
         QuoterV2.update({ QuoterV2.id eq id }) { it[QuoterV2.attachments] = newAttachments }
+    }
+
+    fun editQuote(id: Int, editedBy: String, editedAt: Long, newContent: String) = transaction {
+        val oldContent = QuoterV2.select { QuoterV2.id eq id }.map(::QuoteV2).first().content
+        QuoterV2.update({ QuoterV2.id eq id }) {
+            it[QuoterV2.editedBy] = editedBy
+            it[QuoterV2.editedAt] = editedAt
+            it[QuoterV2.previousContent] = oldContent
+            it[QuoterV2.content] = newContent
+        }
     }
 
     suspend fun <T: Any> PipelineContext<Unit, ApplicationCall>.handle(func: () -> T, respond: (T) -> Any = { it }) {
@@ -160,6 +167,30 @@ object QuoterV2Api {
         get("all") { handle(::getAll) }
 
         get("total") { handle(::getTotal) }
+
+        post("edit/{id}") {
+            val key = call.request.header("Access-Key")
+                    ?: return@post call.respond(HttpStatusCode.BadRequest)
+
+            if (!Core.verifyKey(key)) {
+                return@post call.respond(HttpStatusCode.Unauthorized)
+            }
+
+            val params = call.receiveParameters()
+            val id = params["id"]?.toIntOrNull()
+                    ?: return@post call.respond(HttpStatusCode.BadRequest)
+            val editedBy = params["edited_by"]
+                    ?: return@post call.respond(HttpStatusCode.BadRequest)
+            val newContent = params["new_content"]
+                    ?: return@post call.respond(HttpStatusCode.BadRequest)
+
+            try {
+                editQuote(id, editedBy, System.currentTimeMillis(), newContent)
+            } catch(e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
     }
 
 }
