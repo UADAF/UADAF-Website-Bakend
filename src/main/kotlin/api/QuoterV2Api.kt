@@ -78,7 +78,7 @@ object QuoterV2Api {
             it[QuoterV2.editedAt] = editedAt
             it[QuoterV2.previousContent] = oldContent
             it[QuoterV2.content] = newContent
-        }
+        } != 0
     }
 
     suspend fun <T: Any> PipelineContext<Unit, ApplicationCall>.handle(func: () -> T, check: Boolean = true ,respond: (T) -> Any = { it }) {
@@ -183,7 +183,7 @@ object QuoterV2Api {
 
         get("total") { handle(::getTotal) }
 
-        post("edit/{id}") {
+        post("edit") {
             val key = call.request.header("Access-Key")
                     ?: return@post call.respond(HttpStatusCode.BadRequest)
 
@@ -200,7 +200,11 @@ object QuoterV2Api {
                     ?: return@post call.respond(HttpStatusCode.BadRequest)
 
             try {
-                editQuote(id, editedBy, System.currentTimeMillis(), newContent)
+                if (editQuote(id, editedBy, System.currentTimeMillis(), newContent)) {
+                    return@post call.respond(HttpStatusCode.OK)
+                } else {
+                    return@post call.respond(HttpStatusCode.NotAcceptable)
+                }
             } catch(e: Exception) {
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError)
