@@ -99,7 +99,7 @@ object QuoterV2Api {
 
         put("/") {
             val key = call.request.header("Access-Key")
-                    ?: return@put call.respond(HttpStatusCode.BadRequest)
+                    ?: return@put call.respond(HttpStatusCode.Forbidden)
 
             if (!Core.verifyKey(key)) {
                 return@put call.respond(HttpStatusCode.Unauthorized)
@@ -125,7 +125,7 @@ object QuoterV2Api {
 
         put("attach") {
             val key = call.request.header("Access-Key")
-                    ?: return@put call.respond(HttpStatusCode.BadRequest)
+                    ?: return@put call.respond(HttpStatusCode.Forbidden)
 
             if (!Core.verifyKey(key)) {
                 return@put call.respond(HttpStatusCode.Unauthorized)
@@ -185,7 +185,7 @@ object QuoterV2Api {
 
         post("edit") {
             val key = call.request.header("Access-Key")
-                    ?: return@post call.respond(HttpStatusCode.BadRequest)
+                    ?: return@post call.respond(HttpStatusCode.Forbidden)
 
             if (!Core.verifyKey(key)) {
                 return@post call.respond(HttpStatusCode.Unauthorized)
@@ -203,7 +203,7 @@ object QuoterV2Api {
                 if (editQuote(id, editedBy, System.currentTimeMillis(), newContent)) {
                     return@post call.respond(HttpStatusCode.OK)
                 } else {
-                    return@post call.respond(HttpStatusCode.NotAcceptable)
+                    return@post call.respond(HttpStatusCode.NotFound)
                 }
             } catch(e: Exception) {
                 e.printStackTrace()
