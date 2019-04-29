@@ -34,14 +34,14 @@ object QuoterV2Api {
         QuoterV2.select { (QuoterV2.id greaterEq from) and (QuoterV2.id lessEq to) }.map(::QuoteV2)
     }
 
-    fun getTotal(): Int = QuoterV2.selectAll().count()
+    fun getTotal(): Int = transaction { QuoterV2.selectAll().count() }
 
     fun getRandom(count: Int): List<QuoteV2> = transaction {
         val quotes = mutableSetOf<QuoteV2>()
         val max = getTotal()
 
         while (quotes.count() < count) {
-            quotes.addAll(QuoterV2.select { QuoterV2.id eq Random.nextInt(max) }.map(::QuoteV2))
+            quotes.addAll(QuoterV2.select { QuoterV2.id eq Random.nextInt(max + 1) }.map(::QuoteV2))
         }
         quotes.toList()
     }
@@ -54,11 +54,21 @@ object QuoterV2Api {
         QuoterV2.select { QuoterV2.id eq id }.count() > 0
     }
 
-    fun addAttachment(id: Int, attachment: String) = transaction {
-        val oldAttachments = mutableListOf(*QuoterV2.select { QuoterV2.id eq id }.map(::QuoteV2).first().attachments.split(";").toTypedArray())
-        oldAttachments.add(attachment)
-        val newAttachments = oldAttachments.joinToString(";")
-        QuoterV2.update({ QuoterV2.id eq id }) { it[QuoterV2.attachments] = newAttachments }
+    enum class AttachmentResult {
+        Attached,
+        AlreadyAttached,
+        Error
+    }
+    fun addAttachment(id: Int, attachment: String): AttachmentResult = transaction {
+        val oldAttachments = QuoterV2.select { QuoterV2.id eq id }.map(::QuoteV2).first().attachments.toTypedArray()
+        if (attachment in oldAttachments) return@transaction AttachmentResult.AlreadyAttached
+        val newAttachments = listOf(*oldAttachments, attachment).joinToString(";")
+
+        return@transaction if (QuoterV2.update({ QuoterV2.id eq id }) { it[QuoterV2.attachments] = newAttachments } != 0) {
+            AttachmentResult.Attached
+        } else {
+            AttachmentResult.Error
+        }
     }
 
     fun editQuote(id: Int, editedBy: String, editedAt: Long, newContent: String) = transaction {
@@ -71,10 +81,10 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun <T: Any> PipelineContext<Unit, ApplicationCall>.handle(func: () -> T, respond: (T) -> Any = { it }) {
+    suspend fun <T: Any> PipelineContext<Unit, ApplicationCall>.handle(func: () -> T, check: Boolean = true ,respond: (T) -> Any = { it }) {
         try {
             val result = func()
-            if (result is List<*> && result.isEmpty()) {
+            if (check && result is List<*> && result.isEmpty()) {
                 return call.respond(HttpStatusCode.NotFound)
             }
 
@@ -85,7 +95,7 @@ object QuoterV2Api {
         }
     }
 
-    fun Route.quoterV2() = route("quote-v2") {
+    fun Route.quoterV2() = route("quote") {
 
         put("/") {
             val key = call.request.header("Access-Key")
@@ -134,7 +144,12 @@ object QuoterV2Api {
             if (!attachmentExists) return@put call.respond(HttpStatusCode.NoContent)
 
             try {
-                addAttachment(id, attachment)
+                val result = addAttachment(id, attachment)
+                return@put when (result) {
+                    QuoterV2Api.AttachmentResult.Attached -> call.respond(HttpStatusCode.Accepted)
+                    QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(HttpStatusCode.Conflict)
+                    QuoterV2Api.AttachmentResult.Error -> call.respond(HttpStatusCode.NotFound)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 return@put call.respond(HttpStatusCode.InternalServerError)
@@ -154,17 +169,17 @@ object QuoterV2Api {
             val to = call.parameters["to"]?.toIntOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
 
-            handle({ getRange(from, to) })
+            handle({ getRange(from, to) }, check=false)
         }
 
         get("random/{count?}") {
             val count = (call.parameters["count"] ?: "1").toIntOrNull() ?:
                     return@get call.respond(HttpStatusCode.BadRequest)
 
-            handle({ getRandom(count) })
+            handle({ getRandom(count) },check=false)
         }
 
-        get("all") { handle(::getAll) }
+        get("all") { handle(::getAll, check=false) }
 
         get("total") { handle(::getTotal) }
 
