@@ -14,7 +14,8 @@ data class QuoteV2(
         val date: Long,
         @SerializedName("edited_by") val editedBy: String,
         @SerializedName("edited_at") val editedAt: Long,
-        val attachments: List<String>
+        val attachments: List<String>,
+        val isOld: Boolean
 ) {
 
     constructor(row: ResultRow): this(
@@ -25,7 +26,8 @@ data class QuoteV2(
             row[QuoterV2.date].millis,
             row[QuoterV2.editedBy] ?: "null",
             row[QuoterV2.editedAt] ?: -1,
-            row[QuoterV2.attachments].split(";"))
+            row[QuoterV2.attachments].split(";"),
+            row[QuoterV2.isOld])
 
 
 

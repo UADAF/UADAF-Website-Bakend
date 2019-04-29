@@ -1,6 +1,7 @@
 package dao
 
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.booleanParam
 
 object IthFavorites : Table("ith_favorites") {
     val user = text("user")
@@ -43,6 +44,7 @@ object QuoterV2 : Table("quoterv2") {
     val editedAt = long("edited_at").nullable()
     val previousContent = text("previous_content").nullable()
     val attachments = text("attachments")
+    val isOld = bool("is_old")
 }
 
 object Attachments : Table("attachments") {
