@@ -33,7 +33,7 @@ object Users : Table("users") {
     val rate = integer("rate")
 }
 
-object QuoterV2 : Table("quotes") {
+object QuoterV2 : Table("quoterv2") {
     val id = integer("id").primaryKey().autoIncrement()
     val adder = text("adder")
     val author = text("author")

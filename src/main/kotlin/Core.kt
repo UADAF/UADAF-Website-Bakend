@@ -1,4 +1,7 @@
 import api.AttachmentsApi.attachments
+import api.ITHApi.ith
+import api.MusicApi.music
+import api.QuoterApi.quoter
 import api.QuoterV2Api.quoterV2
 import com.google.common.hash.Hashing
 import com.gt22.uadam.utils.obj
@@ -14,6 +17,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import org.jetbrains.exposed.sql.Database
 import utils.jsonParser
+import web.QuoterWeb.quoterWeb
 import java.io.File
 import java.nio.charset.StandardCharsets
 
@@ -33,10 +37,17 @@ object Core {
             }
             routing{
                 route("api") {
-                    attachments()
-                    quoterV2()
+                    quoter()
+                    ith()
+                    music()
+
+                    route ("v2") {
+                        attachments()
+                        quoterV2()
+                    }
                 }
                 route("web") {
+                    quoterWeb()
                 }
                 static("static") {
                     files("styles")
