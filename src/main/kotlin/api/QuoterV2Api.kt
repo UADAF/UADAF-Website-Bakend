@@ -12,6 +12,7 @@ import io.ktor.util.pipeline.PipelineContext
 import model.QuoteV2
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.lang.Integer.min
 import java.sql.SQLException
 import kotlin.random.Random
 
@@ -36,10 +37,10 @@ object QuoterV2Api {
 
     fun getTotal(): Int = transaction { QuoterV2.selectAll().count() }
 
-    fun getRandom(count: Int): List<QuoteV2> = transaction {
+    fun getRandom(_count: Int): List<QuoteV2> = transaction {
         val quotes = mutableSetOf<QuoteV2>()
         val max = getTotal()
-
+        val count = min(_count, max)
         while (quotes.count() < count) {
             quotes.addAll(QuoterV2.select { QuoterV2.id eq Random.nextInt(max + 1) }.map(::QuoteV2))
         }
@@ -97,6 +98,13 @@ object QuoterV2Api {
 
     fun Route.quoterV2() = route("quote") {
 
+        /**
+         * Forbidden - if access key not passed
+         * Unauthorized - if access key is invalid
+         * BadRequest - necessary params not passed
+         * OK - added
+         * ISE - exception
+         */
         put("/") {
             val key = call.request.header("Access-Key")
                     ?: return@put call.respond(HttpStatusCode.Forbidden)
@@ -123,6 +131,16 @@ object QuoterV2Api {
             }
         }
 
+        /**
+        * Forbidden - if access key not passed
+        * Unauthorized - if access key is invalid
+        * BadRequest - necessary params not passed
+        * OK - attached
+        * NotFound - quote doesn't exists
+        * Gone - attachment doesn't exists
+        * Conflict - already attached
+        * ISE - exception
+        */
         put("attach") {
             val key = call.request.header("Access-Key")
                     ?: return@put call.respond(HttpStatusCode.Forbidden)
@@ -141,12 +159,12 @@ object QuoterV2Api {
             val attachmentExists = AttachmentsApi.isExists(attachment)
 
             if (!quoteExists) return@put call.respond(HttpStatusCode.NotFound)
-            if (!attachmentExists) return@put call.respond(HttpStatusCode.NoContent)
+            if (!attachmentExists) return@put call.respond(HttpStatusCode.Gone)
 
             try {
                 val result = addAttachment(id, attachment)
                 return@put when (result) {
-                    QuoterV2Api.AttachmentResult.Attached -> call.respond(HttpStatusCode.Accepted)
+                    QuoterV2Api.AttachmentResult.Attached -> call.respond(HttpStatusCode.OK)
                     QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(HttpStatusCode.Conflict)
                     QuoterV2Api.AttachmentResult.Error -> call.respond(HttpStatusCode.NotFound)
                 }
@@ -156,6 +174,12 @@ object QuoterV2Api {
             }
         }
 
+        /**
+         * BadRequest - id not passed or invalid
+         * NotFound - quote not found
+         * OK - succeed
+         * ISE - exception
+         */
         get("{id}") {
             val id = call.parameters["id"]?.toIntOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
@@ -163,26 +187,53 @@ object QuoterV2Api {
             handle({ getById(id) }) { it.first() }
         }
 
+        /**
+         * BadRequest - if params not passed or invalid
+         * OK - succeed
+         * ISE - exception
+         */
         get("{from}/{to}") {
             val from = call.parameters["from"]?.toIntOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
             val to = call.parameters["to"]?.toIntOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
+            if (from > to) return@get call.respond(HttpStatusCode.BadRequest)
 
             handle({ getRange(from, to) }, check=false)
         }
 
+        /**
+         * BadRequest - if params not passed or invalid
+         * OK - succeed
+         * ISE - exception
+         */
         get("random/{count?}") {
             val count = (call.parameters["count"] ?: "1").toIntOrNull() ?:
                     return@get call.respond(HttpStatusCode.BadRequest)
+            if (count < 0) return@get call.respond(HttpStatusCode.BadRequest)
 
             handle({ getRandom(count) },check=false)
         }
 
+        /**
+         * OK - succeed
+         * ISE - exception
+         */
         get("all") { handle(::getAll, check=false) }
 
+        /**
+         * OK - succeed
+         * ISE - exception
+         */
         get("total") { handle(::getTotal) }
 
+        /**
+         * NotFound - quote doesn't exists
+         * Forbidden - if access key not passed
+         * Unauthorized - if access key is invalid
+         * OK - succeed
+         * ISE - exception
+         */
         post("edit") {
             val key = call.request.header("Access-Key")
                     ?: return@post call.respond(HttpStatusCode.Forbidden)
