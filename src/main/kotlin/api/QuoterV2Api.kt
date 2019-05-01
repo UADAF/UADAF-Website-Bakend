@@ -37,14 +37,31 @@ object QuoterV2Api {
 
     fun getTotal(): Int = transaction { QuoterV2.selectAll().count() }
 
-    fun getRandom(_count: Int): List<QuoteV2> = transaction {
-        val quotes = mutableSetOf<QuoteV2>()
-        val max = getTotal()
-        val count = min(_count, max)
-        while (quotes.count() < count) {
-            quotes.addAll(QuoterV2.select { QuoterV2.id eq Random.nextInt(max + 1) }.map(::QuoteV2))
+    fun getRandom(c: Int): List<QuoteV2> = transaction {
+        val total =  QuoterV2.selectAll().count()
+        val count = min(c, total)
+        val indexes = (0..total).toMutableList()
+
+        for (i in 0..(total - count)) {
+            indexes.removeAt(Random.nextInt(indexes.size))
         }
-        quotes.toList()
+
+        return@transaction QuoterV2.select { QuoterV2.id inList indexes }.map(::QuoteV2)
+    }
+
+    fun fixIds() = transaction {
+        val allIds = QuoterV2.slice(QuoterV2.id).selectAll().map { it[QuoterV2.id] }
+
+        allIds.forEachIndexed { index, id ->
+            if (index + 1 != id) {
+                QuoterV2.update({
+                    QuoterV2.id eq id
+                }) {
+                    it[QuoterV2.id] = index + 1
+                }
+            }
+        }
+
     }
 
     fun getAll(): List<QuoteV2> = transaction {
@@ -257,6 +274,23 @@ object QuoterV2Api {
                     return@post call.respond(HttpStatusCode.NotFound)
                 }
             } catch(e: Exception) {
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError)
+            }
+        }
+
+        post("fix_ids") {
+            val key = call.request.header("Access-Key")
+                    ?: return@post call.respond(HttpStatusCode.Forbidden)
+
+            if (!Core.verifyKey(key)) {
+                return@post call.respond(HttpStatusCode.Unauthorized)
+            }
+
+            try {
+                fixIds()
+                return@post call.respond(HttpStatusCode.OK)
+            } catch (e: Exception) {
                 e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError)
             }
