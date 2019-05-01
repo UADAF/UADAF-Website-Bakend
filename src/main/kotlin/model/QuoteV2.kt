@@ -9,7 +9,7 @@ import org.joda.time.DateTime
 data class QuoteV2(
         val id: Int,
         val adder: String,
-        val author: String,
+        val author: List<String>,
         val content: String,
         val date: Long,
         @SerializedName("edited_by") val editedBy: String,
@@ -21,7 +21,7 @@ data class QuoteV2(
     constructor(row: ResultRow): this(
             row[QuoterV2.id],
             row[QuoterV2.adder],
-            row[QuoterV2.author],
+            row[QuoterV2.author].split(";"),
             row[QuoterV2.content],
             row[QuoterV2.date].millis,
             row[QuoterV2.editedBy] ?: "null",
