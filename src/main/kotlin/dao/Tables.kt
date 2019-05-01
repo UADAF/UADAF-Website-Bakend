@@ -37,7 +37,7 @@ object Users : Table("users") {
 object QuoterV2 : Table("quoterv2") {
     val id = integer("id").primaryKey().autoIncrement()
     val adder = text("adder")
-    val author = text("author")
+    val authors = text("authors")
     val date = datetime("date")
     val content = text("content")
     val editedBy = text("edited_by").nullable()

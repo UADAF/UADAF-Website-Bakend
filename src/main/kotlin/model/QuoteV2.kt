@@ -9,24 +9,24 @@ import org.joda.time.DateTime
 data class QuoteV2(
         val id: Int,
         val adder: String,
-        val author: List<String>,
+        val authors: List<String>,
         val content: String,
         val date: Long,
         @SerializedName("edited_by") val editedBy: String,
         @SerializedName("edited_at") val editedAt: Long,
         val attachments: List<String>,
-        val isOld: Boolean
+        @SerializedName("is_old") val isOld: Boolean
 ) {
 
     constructor(row: ResultRow): this(
             row[QuoterV2.id],
             row[QuoterV2.adder],
-            row[QuoterV2.author].split(";"),
+            row[QuoterV2.authors].split(";").filter(String::isNotBlank),
             row[QuoterV2.content],
             row[QuoterV2.date].millis,
             row[QuoterV2.editedBy] ?: "null",
             row[QuoterV2.editedAt] ?: -1,
-            row[QuoterV2.attachments].split(";"),
+            row[QuoterV2.attachments].split(";").filter(String::isNotBlank),
             row[QuoterV2.isOld])
 
 

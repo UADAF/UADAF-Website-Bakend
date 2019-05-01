@@ -18,10 +18,10 @@ import kotlin.random.Random
 
 object QuoterV2Api {
 
-    fun addQuote(adder: String, author: String, content: String, attachments: List<String>): Unit = transaction {
+    fun addQuote(adder: String, authors: String, content: String, attachments: List<String>): Unit = transaction {
         QuoterV2.insert {
             it[QuoterV2.adder] = adder
-            it[QuoterV2.author] = author
+            it[QuoterV2.authors] = authors
             it[QuoterV2.content] = content
             it[QuoterV2.attachments] = attachments.joinToString(";")
         }
@@ -61,7 +61,6 @@ object QuoterV2Api {
                 }
             }
         }
-
     }
 
     fun getAll(): List<QuoteV2> = transaction {
@@ -134,14 +133,14 @@ object QuoterV2Api {
 
             val adder = params["adder"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest)
-            val author = params["author"]
+            val authors = params["authors"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest)
             val content = params["content"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest)
             val attachments = params["attachments"]?.split(";") ?:
                     emptyList()
              try {
-                addQuote(adder, author, content, attachments)
+                addQuote(adder, authors, content, attachments)
                 call.respond(HttpStatusCode.OK)
             } catch(e: SQLException) {
                 call.respond(HttpStatusCode.InternalServerError)
