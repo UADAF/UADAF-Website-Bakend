@@ -1,30 +1,27 @@
 package api
 
-import com.google.common.hash.Hashing
 import dao.Quoter
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode.Companion.BadRequest
-import io.ktor.http.HttpStatusCode.Companion.InternalServerError
-import io.ktor.http.HttpStatusCode.Companion.NotFound
-import io.ktor.http.HttpStatusCode.Companion.OK
-import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
-import io.ktor.util.toMap
-import kotlinx.css.em
 import model.Quote
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.nio.charset.StandardCharsets
 import java.sql.SQLException
 import java.util.Date
 import kotlin.random.Random
+
+import io.ktor.http.HttpStatusCode.Companion.BadRequest
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
+import io.ktor.http.HttpStatusCode.Companion.NotFound
+import io.ktor.http.HttpStatusCode.Companion.OK
+import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 
 object QuoterApi {
 

@@ -2,8 +2,6 @@ package api
 
 import dao.Users
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Route
@@ -16,6 +14,11 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import utils.json
 import java.sql.SQLException
+
+import io.ktor.http.HttpStatusCode.Companion.BadRequest
+import io.ktor.http.HttpStatusCode.Companion.OK
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
+
 
 object ITHApi {
 
@@ -48,9 +51,9 @@ object ITHApi {
                         u[story] = userId
                     }
                 }
-                call.respond(HttpStatusCode.OK)
+                call.respond(OK)
             }catch (e: SQLException) {
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
     }

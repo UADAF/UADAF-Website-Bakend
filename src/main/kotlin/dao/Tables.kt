@@ -1,7 +1,6 @@
 package dao
 
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.booleanParam
 
 object IthFavorites : Table("ith_favorites") {
     val user = text("user")

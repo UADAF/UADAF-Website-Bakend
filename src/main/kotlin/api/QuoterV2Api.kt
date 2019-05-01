@@ -3,7 +3,6 @@ package api
 import dao.QuoterV2
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
 import io.ktor.request.header
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
@@ -15,6 +14,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.lang.Integer.min
 import java.sql.SQLException
 import kotlin.random.Random
+
+import io.ktor.http.HttpStatusCode.Companion.BadRequest
+import io.ktor.http.HttpStatusCode.Companion.Conflict
+import io.ktor.http.HttpStatusCode.Companion.Forbidden
+import io.ktor.http.HttpStatusCode.Companion.Gone
+import io.ktor.http.HttpStatusCode.Companion.NotFound
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
+import io.ktor.http.HttpStatusCode.Companion.OK
+import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 
 object QuoterV2Api {
 
@@ -102,13 +110,13 @@ object QuoterV2Api {
         try {
             val result = func()
             if (check && result is List<*> && result.isEmpty()) {
-                return call.respond(HttpStatusCode.NotFound)
+                return call.respond(NotFound)
             }
 
             call.respond(respond(result))
         } catch (e: Exception) {
             e.printStackTrace()
-            call.respond(HttpStatusCode.InternalServerError)
+            call.respond(InternalServerError)
         }
     }
 
@@ -123,27 +131,27 @@ object QuoterV2Api {
          */
         put("/") {
             val key = call.request.header("Access-Key")
-                    ?: return@put call.respond(HttpStatusCode.Forbidden)
+                    ?: return@put call.respond(Forbidden)
 
             if (!Core.verifyKey(key)) {
-                return@put call.respond(HttpStatusCode.Unauthorized)
+                return@put call.respond(Unauthorized)
             }
 
             val params = call.receiveParameters()
 
             val adder = params["adder"]
-                    ?: return@put call.respond(HttpStatusCode.BadRequest)
+                    ?: return@put call.respond(BadRequest)
             val authors = params["authors"]
-                    ?: return@put call.respond(HttpStatusCode.BadRequest)
+                    ?: return@put call.respond(BadRequest)
             val content = params["content"]
-                    ?: return@put call.respond(HttpStatusCode.BadRequest)
+                    ?: return@put call.respond(BadRequest)
             val attachments = params["attachments"]?.split(";") ?:
                     emptyList()
              try {
                 addQuote(adder, authors, content, attachments)
-                call.respond(HttpStatusCode.OK)
+                call.respond(OK)
             } catch(e: SQLException) {
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
 
@@ -159,34 +167,34 @@ object QuoterV2Api {
         */
         put("attach") {
             val key = call.request.header("Access-Key")
-                    ?: return@put call.respond(HttpStatusCode.Forbidden)
+                    ?: return@put call.respond(Forbidden)
 
             if (!Core.verifyKey(key)) {
-                return@put call.respond(HttpStatusCode.Unauthorized)
+                return@put call.respond(Unauthorized)
             }
 
             val params = call.receiveParameters()
             val id = params["id"]?.toIntOrNull()
-                    ?: return@put call.respond(HttpStatusCode.BadRequest)
+                    ?: return@put call.respond(BadRequest)
             val attachment = params["attachment"]
-                    ?: return@put call.respond(HttpStatusCode.BadRequest)
+                    ?: return@put call.respond(BadRequest)
 
             val quoteExists = isExists(id)
             val attachmentExists = AttachmentsApi.isExists(attachment)
 
-            if (!quoteExists) return@put call.respond(HttpStatusCode.NotFound)
-            if (!attachmentExists) return@put call.respond(HttpStatusCode.Gone)
+            if (!quoteExists) return@put call.respond(NotFound)
+            if (!attachmentExists) return@put call.respond(Gone)
 
             try {
                 val result = addAttachment(id, attachment)
                 return@put when (result) {
-                    QuoterV2Api.AttachmentResult.Attached -> call.respond(HttpStatusCode.OK)
-                    QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(HttpStatusCode.Conflict)
-                    QuoterV2Api.AttachmentResult.Error -> call.respond(HttpStatusCode.NotFound)
+                    QuoterV2Api.AttachmentResult.Attached -> call.respond(OK)
+                    QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(Conflict)
+                    QuoterV2Api.AttachmentResult.Error -> call.respond(NotFound)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                return@put call.respond(HttpStatusCode.InternalServerError)
+                return@put call.respond(InternalServerError)
             }
         }
 
@@ -198,7 +206,7 @@ object QuoterV2Api {
          */
         get("{id}") {
             val id = call.parameters["id"]?.toIntOrNull()
-                    ?: return@get call.respond(HttpStatusCode.BadRequest)
+                    ?: return@get call.respond(BadRequest)
 
             handle({ getById(id) }) { it.first() }
         }
@@ -210,10 +218,10 @@ object QuoterV2Api {
          */
         get("{from}/{to}") {
             val from = call.parameters["from"]?.toIntOrNull()
-                    ?: return@get call.respond(HttpStatusCode.BadRequest)
+                    ?: return@get call.respond(BadRequest)
             val to = call.parameters["to"]?.toIntOrNull()
-                    ?: return@get call.respond(HttpStatusCode.BadRequest)
-            if (from > to) return@get call.respond(HttpStatusCode.BadRequest)
+                    ?: return@get call.respond(BadRequest)
+            if (from > to) return@get call.respond(BadRequest)
 
             handle({ getRange(from, to) }, check=false)
         }
@@ -225,8 +233,8 @@ object QuoterV2Api {
          */
         get("random/{count?}") {
             val count = (call.parameters["count"] ?: "1").toIntOrNull() ?:
-                    return@get call.respond(HttpStatusCode.BadRequest)
-            if (count < 0) return@get call.respond(HttpStatusCode.BadRequest)
+                    return@get call.respond(BadRequest)
+            if (count < 0) return@get call.respond(BadRequest)
 
             handle({ getRandom(count) },check=false)
         }
@@ -252,46 +260,46 @@ object QuoterV2Api {
          */
         post("edit") {
             val key = call.request.header("Access-Key")
-                    ?: return@post call.respond(HttpStatusCode.Forbidden)
+                    ?: return@post call.respond(Forbidden)
 
             if (!Core.verifyKey(key)) {
-                return@post call.respond(HttpStatusCode.Unauthorized)
+                return@post call.respond(Unauthorized)
             }
 
             val params = call.receiveParameters()
             val id = params["id"]?.toIntOrNull()
-                    ?: return@post call.respond(HttpStatusCode.BadRequest)
+                    ?: return@post call.respond(BadRequest)
             val editedBy = params["edited_by"]
-                    ?: return@post call.respond(HttpStatusCode.BadRequest)
+                    ?: return@post call.respond(BadRequest)
             val newContent = params["new_content"]
-                    ?: return@post call.respond(HttpStatusCode.BadRequest)
+                    ?: return@post call.respond(BadRequest)
 
             try {
                 if (editQuote(id, editedBy, System.currentTimeMillis(), newContent)) {
-                    return@post call.respond(HttpStatusCode.OK)
+                    return@post call.respond(OK)
                 } else {
-                    return@post call.respond(HttpStatusCode.NotFound)
+                    return@post call.respond(NotFound)
                 }
             } catch(e: Exception) {
                 e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
 
         post("fix_ids") {
             val key = call.request.header("Access-Key")
-                    ?: return@post call.respond(HttpStatusCode.Forbidden)
+                    ?: return@post call.respond(Forbidden)
 
             if (!Core.verifyKey(key)) {
-                return@post call.respond(HttpStatusCode.Unauthorized)
+                return@post call.respond(Unauthorized)
             }
 
             try {
                 fixIds()
-                return@post call.respond(HttpStatusCode.OK)
+                return@post call.respond(OK)
             } catch (e: Exception) {
                 e.printStackTrace()
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
     }

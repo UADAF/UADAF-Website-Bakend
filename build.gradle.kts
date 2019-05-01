@@ -1,14 +1,13 @@
-import org.jetbrains.kotlin.gradle.dsl.Coroutines
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "UADAF-Website-Bakend"
-version = "1.1"
+version = "1.2"
 
 val ktorVersion = "1.0.0-beta-3"
 
 plugins {
     application
-    kotlin("jvm") version "1.3.0"
+    kotlin("jvm") version "1.3.31"
 }
 
 repositories {
@@ -31,7 +30,7 @@ tasks.withType<KotlinCompile>().all {
 
 application {
     mainClassName = "CoreKt"
-    applicationName = "Bakend"
+    applicationName = "UADAF-Website-Bakend"
 }
 
 dependencies {

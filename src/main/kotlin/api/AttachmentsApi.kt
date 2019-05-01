@@ -3,7 +3,6 @@ package api
 import com.google.common.hash.Hashing
 import dao.Attachments
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
 import io.ktor.request.header
 import io.ktor.request.receiveStream
 import io.ktor.response.header
@@ -15,6 +14,15 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.nio.charset.StandardCharsets
 import java.sql.Blob
+
+import io.ktor.http.HttpStatusCode.Companion.BadRequest
+import io.ktor.http.HttpStatusCode.Companion.Unauthorized
+import io.ktor.http.HttpStatusCode.Companion.Forbidden
+import io.ktor.http.HttpStatusCode.Companion.OK
+import io.ktor.http.HttpStatusCode.Companion.Accepted
+import io.ktor.http.HttpStatusCode.Companion.NotFound
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
+
 
 object AttachmentsApi {
 
@@ -35,7 +43,6 @@ object AttachmentsApi {
             val rows = Attachments.select { Attachments.id eq id }
             if (rows.count() > 0) {
                 val row = rows.firstOrNull() ?: return@transaction null
-
                 return@transaction row[Attachments.type].toString() to row[Attachments.data]
             } else {
                 return@transaction null
@@ -50,36 +57,37 @@ object AttachmentsApi {
     fun Route.attachments() = route("attachments") {
         put("/") {
             val key = call.request.header("Access-Key")
-                    ?: return@put call.respond(HttpStatusCode.BadRequest)
+                    ?: return@put call.respond(Forbidden)
             if (!Core.verifyKey(key)) {
-                return@put call.respond(HttpStatusCode.Unauthorized)
+                return@put call.respond(Unauthorized)
             }
 
             try {
                 val type = call.request.header("Content-Type")
-                        ?: return@put call.respond(HttpStatusCode.BadRequest)
+                        ?: return@put call.respond(BadRequest)
                 val data = call.receiveStream().readBytes()
                 val id = Hashing.hmacSha256(System.currentTimeMillis().toString().toByteArray(StandardCharsets.UTF_8)).hashBytes(data).toString()
                 putAttachment(id, type, data)
                 call.response.header("A-ID", id)
-                call.respond(HttpStatusCode.Accepted)
+                call.respond(Accepted)
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
+
         get("{id}") {
             val key = call.request.header("Access-Key")
-                    ?: return@get call.respond(HttpStatusCode.BadRequest)
+                    ?: return@get call.respond(Forbidden)
 
             if (!Core.verifyKey(key)) {
-                return@get call.respond(HttpStatusCode.Unauthorized)
+                return@get call.respond(Unauthorized)
             }
 
             val id = call.parameters["id"]
-                    ?: return@get call.respond(HttpStatusCode.BadRequest)
+                    ?: return@get call.respond(BadRequest)
 
             val result = getAttachment(id)
-                    ?: return@get call.respond(HttpStatusCode.NotFound)
+                    ?: return@get call.respond(NotFound)
 
 
             call.response.header("A-Content-Type", result.first)
@@ -88,22 +96,22 @@ object AttachmentsApi {
 
         delete("{id}") {
             val key = call.request.header("Access-Key")
-                    ?: return@delete call.respond(HttpStatusCode.BadRequest)
+                    ?: return@delete call.respond(Forbidden)
 
             if (!Core.verifyKey(key)) {
-                return@delete call.respond(HttpStatusCode.Unauthorized)
+                return@delete call.respond(Unauthorized)
             }
 
             val id = call.parameters["id"]
-                    ?: return@delete call.respond(HttpStatusCode.BadRequest)
+                    ?: return@delete call.respond(BadRequest)
 
             getAttachment(id)
-                    ?: return@delete call.respond(HttpStatusCode.NotFound)
+                    ?: return@delete call.respond(NotFound)
 
             transaction {
                 Attachments.deleteWhere { Attachments.id eq id }
             }
-            call.respond(HttpStatusCode.OK)
+            call.respond(OK)
         }
     }
 
