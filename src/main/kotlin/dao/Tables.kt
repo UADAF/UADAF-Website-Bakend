@@ -38,6 +38,7 @@ object QuoterV2 : Table("quoterv2") {
     val adder = text("adder")
     val authors = text("authors")
     val date = datetime("date")
+    val dtype = text("dtype")
     val content = text("content")
     val editedBy = text("edited_by").nullable()
     val editedAt = long("edited_at").nullable()

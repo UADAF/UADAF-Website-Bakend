@@ -26,12 +26,13 @@ import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 
 object QuoterV2Api {
 
-    fun addQuote(adder: String, authors: String, content: String, attachments: List<String>): Unit = transaction {
+    fun addQuote(adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>): Unit = transaction {
         QuoterV2.insert {
-            it[QuoterV2.adder] = adder
-            it[QuoterV2.authors] = authors
-            it[QuoterV2.content] = content
-            it[QuoterV2.attachments] = attachments.joinToString(";")
+            it[adder] = adderIn
+            it[authors] = authorsIn
+            it[content] = contentIn
+            it[dtype] = displayTypeIn
+            it[attachments] = attachmentsIn.joinToString(";")
         }
     }
 
@@ -89,20 +90,20 @@ object QuoterV2Api {
         if (attachment in oldAttachments) return@transaction AttachmentResult.AlreadyAttached
         val newAttachments = listOf(*oldAttachments, attachment).joinToString(";")
 
-        return@transaction if (QuoterV2.update({ QuoterV2.id eq id }) { it[QuoterV2.attachments] = newAttachments } != 0) {
+        return@transaction if (QuoterV2.update({ QuoterV2.id eq id }) { it[attachments] = newAttachments } != 0) {
             AttachmentResult.Attached
         } else {
             AttachmentResult.Error
         }
     }
 
-    fun editQuote(id: Int, editedBy: String, editedAt: Long, newContent: String) = transaction {
-        val oldContent = QuoterV2.select { QuoterV2.id eq id }.map(::QuoteV2).first().content
-        QuoterV2.update({ QuoterV2.id eq id }) {
-            it[QuoterV2.editedBy] = editedBy
-            it[QuoterV2.editedAt] = editedAt
-            it[QuoterV2.previousContent] = oldContent
-            it[QuoterV2.content] = newContent
+    fun editQuote(idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String) = transaction {
+        val oldContent = QuoterV2.select { QuoterV2.id eq idIn }.map(::QuoteV2).first().content
+        QuoterV2.update({ QuoterV2.id eq idIn }) {
+            it[editedBy] = editedByIn
+            it[editedAt] = editedAtIn
+            it[previousContent] = oldContent
+            it[content] = newContentIn
         } != 0
     }
 
@@ -123,11 +124,22 @@ object QuoterV2Api {
     fun Route.quoterV2() = route("quote") {
 
         /**
-         * Forbidden - if access key not passed
-         * Unauthorized - if access key is invalid
-         * BadRequest - necessary params not passed
-         * OK - added
-         * ISE - exception
+         * <b>Arguments</b>
+         *  * adder - string - adder name (required)
+         *  * authors - string - authors names separated by ; (required)
+         *  * dtype - string - display type: dialog or text (text by default)
+         *  * content - string - quote's content
+         *  * attachments - string - list of attachments' ids separated by ;
+         *
+         * <b>Headers</b>
+         *  * Access-Key - access key for UADAF API (required)
+         *
+         * <b>Response codes</b>
+         *  * Forbidden - if access key not passed
+         *  * Unauthorized - if access key is invalid
+         *  * BadRequest - necessary params not passed
+         *  * OK - added
+         *  * ISE - exception
          */
         put("/") {
             val key = call.request.header("Access-Key")
@@ -143,12 +155,18 @@ object QuoterV2Api {
                     ?: return@put call.respond(BadRequest)
             val authors = params["authors"]
                     ?: return@put call.respond(BadRequest)
+            val displayType = params["dtype"]
+                    ?: "text"
             val content = params["content"]
                     ?: return@put call.respond(BadRequest)
             val attachments = params["attachments"]?.split(";") ?:
                     emptyList()
+
+            if (displayType !in setOf("text", "dialog"))
+                return@put call.respond(BadRequest)
+
              try {
-                addQuote(adder, authors, content, attachments)
+                addQuote(adder, authors, content, displayType, attachments)
                 call.respond(OK)
             } catch(e: SQLException) {
                 call.respond(InternalServerError)
@@ -186,11 +204,10 @@ object QuoterV2Api {
             if (!attachmentExists) return@put call.respond(Gone)
 
             try {
-                val result = addAttachment(id, attachment)
-                return@put when (result) {
-                    QuoterV2Api.AttachmentResult.Attached -> call.respond(OK)
-                    QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(Conflict)
-                    QuoterV2Api.AttachmentResult.Error -> call.respond(NotFound)
+                return@put when (addAttachment(id, attachment)) {
+                    QuoterV2Api.AttachmentResult.Attached           -> call.respond(OK)
+                    QuoterV2Api.AttachmentResult.AlreadyAttached    -> call.respond(Conflict)
+                    QuoterV2Api.AttachmentResult.Error              -> call.respond(NotFound)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -236,7 +253,7 @@ object QuoterV2Api {
                     return@get call.respond(BadRequest)
             if (count < 0) return@get call.respond(BadRequest)
 
-            handle({ getRandom(count) },check=false)
+            handle({ getRandom(count) }, check=false)
         }
 
         /**

@@ -10,6 +10,7 @@ data class QuoteV2(
         val id: Int,
         val adder: String,
         val authors: List<String>,
+        @SerializedName("dtype") val displayType: String,
         val content: String,
         val date: Long,
         @SerializedName("edited_by") val editedBy: String,
@@ -21,12 +22,17 @@ data class QuoteV2(
     constructor(row: ResultRow): this(
             row[QuoterV2.id],
             row[QuoterV2.adder],
-            row[QuoterV2.authors].split(";").filter(String::isNotBlank),
+            row[QuoterV2.authors]
+                    .split(";")
+                    .filter(String::isNotBlank),
+            row[QuoterV2.dtype],
             row[QuoterV2.content],
             row[QuoterV2.date].millis,
             row[QuoterV2.editedBy] ?: "null",
             row[QuoterV2.editedAt] ?: -1,
-            row[QuoterV2.attachments].split(";").filter(String::isNotBlank),
+            row[QuoterV2.attachments]
+                    .split(";")
+                    .filter(String::isNotBlank),
             row[QuoterV2.isOld])
 
 

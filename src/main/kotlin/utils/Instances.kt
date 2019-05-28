@@ -5,4 +5,3 @@ import io.ktor.http.HttpStatusCode
 
 val jsonParser by lazy { JsonParser() }
 val ImATeapot = HttpStatusCode(418, "I'm a teapot")
-//val gson by lazy { GsonBuilder().setPrettyPrinting().create() }
