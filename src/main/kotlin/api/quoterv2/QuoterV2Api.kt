@@ -17,7 +17,6 @@ import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.*
 import io.ktor.util.pipeline.PipelineContext
-import model.QuoteV2
 import java.sql.SQLException
 
 object QuoterV2Api {
@@ -42,7 +41,7 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestAdd(payloadFunction: (String, String, String, String, List<String>) -> Unit) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestAdd(resolver: IQuoterV2APIResolver = getResolver()) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -67,14 +66,14 @@ object QuoterV2Api {
             return call.respond(BadRequest)
 
         try {
-            payloadFunction(adder, authors, content, displayType, attachments)
+            resolver.addQuote(adder, authors, content, displayType, attachments)
             call.respond(OK)
         } catch(e: SQLException) {
             call.respond(InternalServerError)
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestAttach(payloadFunction: (Int, String) -> AttachmentResult, checkFunction: (Int) -> Boolean) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestAttach(resolver: IQuoterV2APIResolver = getResolver()) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -88,14 +87,14 @@ object QuoterV2Api {
         val attachment = params["attachment"]
                 ?: return call.respond(BadRequest)
 
-        val quoteExists = checkFunction(id)
+        val quoteExists = resolver.isExists(id)
         val attachmentExists = AttachmentsApi.isExists(attachment)
 
         if (!quoteExists) return call.respond(NotFound)
         if (!attachmentExists) return call.respond(Gone)
 
         return try {
-            when (payloadFunction(id, attachment)) {
+            when (resolver.addAttachment(id, attachment)) {
                 QuoterV2Api.AttachmentResult.Attached -> call.respond(OK)
                 QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(Conflict)
                 QuoterV2Api.AttachmentResult.Error -> call.respond(NotFound)
@@ -106,32 +105,32 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestGet(payloadFunction: (Int) -> List<QuoteV2>) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestGet(resolver: IQuoterV2APIResolver = getResolver()) {
         val id = call.parameters["id"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
 
-        handle({ payloadFunction(id) }) { it.first() }
+        handle({ resolver.getById(id) }) { it.first() }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestFromTo(payloadFunction: (Int, Int) -> List<QuoteV2>) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestFromTo(resolver: IQuoterV2APIResolver = getResolver()) {
         val from = call.parameters["from"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         val to = call.parameters["to"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         if (from > to) return call.respond(BadRequest)
 
-        handle({ payloadFunction(from, to) }, check=false)
+        handle({ resolver.getRange(from, to) }, check=false)
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestRandom(payloadFunction: (Int) -> List<QuoteV2>) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestRandom(resolver: IQuoterV2APIResolver = getResolver()) {
         val count = (call.parameters["count"] ?: "1").toIntOrNull() ?:
         return call.respond(BadRequest)
         if (count < 0) return call.respond(BadRequest)
 
-        handle({ payloadFunction(count) }, check=false)
+        handle({ resolver.getRandom(count) }, check=false)
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.proceedEdit(payloadFunction: (Int, String, Long, String) -> Boolean) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.proceedEdit(resolver: IQuoterV2APIResolver = getResolver()) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -148,7 +147,7 @@ object QuoterV2Api {
                 ?: return call.respond(BadRequest)
 
         try {
-            return if (payloadFunction(id, editedBy, System.currentTimeMillis(), newContent)) {
+            return if (resolver.editQuote(id, editedBy, System.currentTimeMillis(), newContent)) {
                 call.respond(OK)
             } else {
                 call.respond(NotFound)
@@ -159,7 +158,7 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.proceedFixIds(payloadFunction: () -> Unit) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.proceedFixIds(resolver: IQuoterV2APIResolver = getResolver()) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -168,7 +167,7 @@ object QuoterV2Api {
         }
 
         try {
-            payloadFunction()
+            resolver.fixIds()
             return call.respond(OK)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -194,17 +193,17 @@ object QuoterV2Api {
          *  * Access-Key - access key for UADAF API (required)
          *
          * <b>Response codes</b>
-         *  * Forbidden - if access key not passed
-         *  * Unauthorized - if access key is invalid
+         *  * Forbidden - access key not passed
+         *  * Unauthorized - access key is invalid
          *  * BadRequest - necessary params not passed
          *  * OK - added
          *  * ISE - exception
          */
-        put("/") { requestAdd(getResolver()::addQuote) }
+        put("/") { requestAdd() }
 
         /**
-        * Forbidden - if access key not passed
-        * Unauthorized - if access key is invalid
+        * Forbidden - access key not passed
+        * Unauthorized - access key is invalid
         * BadRequest - necessary params not passed
         * OK - attached
         * NotFound - quote doesn't exists
@@ -212,7 +211,7 @@ object QuoterV2Api {
         * Conflict - already attached
         * ISE - exception
         */
-        put("attach") { with(getResolver()) { requestAttach(::addAttachment, ::isExists) } }
+        put("attach") { requestAttach() }
 
         /**
          * BadRequest - id not passed or invalid
@@ -220,33 +219,33 @@ object QuoterV2Api {
          * OK - succeed
          * ISE - exception
          */
-        get("{id}") { with(getResolver()) { requestGet(::getById) } }
+        get("{id}") { requestGet() }
 
         /**
-         * BadRequest - if params not passed or invalid
+         * BadRequest - params not passed or invalid
          * OK - succeed
          * ISE - exception
          */
-        get("{from}/{to}") { with(getResolver()) { requestFromTo(::getRange) } }
+        get("{from}/{to}") { requestFromTo() }
 
         /**
-         * BadRequest - if params not passed or invalid
+         * BadRequest - params not passed or invalid
          * OK - succeed
          * ISE - exception
          */
-        get("random/{count?}") { with(getResolver()) { requestRandom(::getRandom) } }
-
-        /**
-         * OK - succeed
-         * ISE - exception
-         */
-        get("all") { with(getResolver()) { handle(::getAll, check=false) } }
+        get("random/{count?}") { requestRandom() }
 
         /**
          * OK - succeed
          * ISE - exception
          */
-        get("total") { with(getResolver()) {  handle(::getTotal)  } }
+        get("all") { handle(getResolver()::getAll, check=false) }
+
+        /**
+         * OK - succeed
+         * ISE - exception
+         */
+        get("total") { handle(getResolver()::getTotal)  }
 
         /**
          * NotFound - quote doesn't exists
@@ -255,9 +254,9 @@ object QuoterV2Api {
          * OK - succeed
          * ISE - exception
          */
-        post("edit") { with(getResolver()) {  proceedEdit(::editQuote) } }
+        post("edit") { proceedEdit() }
 
-        post("fix_ids") { with(getResolver()) { proceedFixIds(::fixIds) } }
+        post("fix_ids") { proceedFixIds() }
     }
 
 }
