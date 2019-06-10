@@ -1,5 +1,6 @@
-package api.quoterv2
+package api.quoterv2.resolvers
 
+import api.quoterv2.QuoterV2Api
 import dao.QuoterTable
 import model.QuoteV2
 import org.jetbrains.exposed.sql.*

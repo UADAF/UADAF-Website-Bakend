@@ -1,6 +1,6 @@
-package api.quoterv2
+package api.quoterv2.resolvers
 
-import dao.QuoterTable
+import api.quoterv2.QuoterV2Api
 import model.QuoteV2
 
 

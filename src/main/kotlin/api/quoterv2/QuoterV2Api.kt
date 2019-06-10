@@ -2,6 +2,7 @@ package api.quoterv2
 
 import Core
 import api.AttachmentsApi
+import api.quoterv2.resolvers.IQuoterV2APIResolver
 import api.quoterv2.resolvers.ResolverRegistry
 import dao.getTable
 import io.ktor.application.ApplicationCall

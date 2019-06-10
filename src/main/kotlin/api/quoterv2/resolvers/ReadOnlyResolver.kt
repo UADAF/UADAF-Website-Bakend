@@ -1,6 +1,5 @@
 package api.quoterv2.resolvers
 
-import api.quoterv2.IQuoterV2APIResolver
 import api.quoterv2.QuoterV2Api
 
 abstract class ReadOnlyResolver : IQuoterV2APIResolver {
