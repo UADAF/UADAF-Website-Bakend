@@ -2,9 +2,7 @@ package api.quoterv2.resolvers
 
 import com.google.gson.JsonObject
 import com.gt22.uadam.utils.*
-import dao.QuoterTable
 import model.QuoteV2
-import java.lang.Integer.min
 import java.lang.StringBuilder
 import java.net.URL
 import kotlin.random.Random
@@ -35,11 +33,11 @@ object ModderPwResolver : ReadOnlyResolver() {
 
     private fun getQuote(id: Int) = unwrapJson(parse("https://modder.pw/api/get.php?id=$id"))
 
-    override fun getById(table: QuoterTable, id: Int): List<QuoteV2> {
+    override fun getById(id: Int): List<QuoteV2> {
         return listOf(getQuote(id))
     }
 
-    override fun getRange(table: QuoterTable, from: Int, to: Int): List<QuoteV2> {
+    override fun getRange(from: Int, to: Int): List<QuoteV2> {
         val ret = mutableListOf<QuoteV2>()
         for(i in from..to) {
             ret.add(getQuote(i))
@@ -53,16 +51,16 @@ object ModderPwResolver : ReadOnlyResolver() {
         return substring(nStart, nEnd)
     }
 
-    override fun getTotal(table: QuoterTable): Int {
+    override fun getTotal(): Int {
         val html = URL("https://modder.pw/new/").readText()
         return html.extractBetween("Цитата #", "</a>").toInt()
     }
 
-    override fun getRandom(table: QuoterTable, c: Int): List<QuoteV2> {
+    override fun getRandom(c: Int): List<QuoteV2> {
         val ids = mutableSetOf<Int>()
-        val total = getTotal(table)
+        val total = getTotal()
         if(c >= total) {
-            return getAll(table)
+            return getAll()
         }
         while(ids.size < c) {
             ids.add(Random.nextInt(1, total + 1))
@@ -70,8 +68,8 @@ object ModderPwResolver : ReadOnlyResolver() {
         return ids.map(::getQuote)
     }
 
-    override fun getAll(table: QuoterTable): List<QuoteV2> {
-        val total = getTotal(table)
+    override fun getAll(): List<QuoteV2> {
+        val total = getTotal()
         val ret = mutableListOf<QuoteV2>()
         for (i in 1..total) {
             ret.add(getQuote(i))
@@ -79,7 +77,7 @@ object ModderPwResolver : ReadOnlyResolver() {
         return ret
     }
 
-    override fun isExists(table: QuoterTable, id: Int): Boolean {
+    override fun isExists(id: Int): Boolean {
         return parse("https://modder.pw/api/get.php?id=$id")["success"].bln
     }
 }

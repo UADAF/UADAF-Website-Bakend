@@ -2,10 +2,10 @@ package api.quoterv2
 
 import Core
 import api.AttachmentsApi
-import dao.QuoterTable
-import dao.QuoterV2
+import api.quoterv2.resolvers.ResolverRegistry
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.http.HttpStatusCode.Companion.Conflict
 import io.ktor.http.HttpStatusCode.Companion.Forbidden
@@ -15,11 +15,15 @@ import io.ktor.http.HttpStatusCode.Companion.NotFound
 import io.ktor.http.HttpStatusCode.Companion.OK
 import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 import io.ktor.request.header
+import io.ktor.request.httpMethod
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.*
 import io.ktor.util.pipeline.PipelineContext
+import utils.StatusCodeException
 import java.sql.SQLException
+
+typealias Ctx = PipelineContext<Unit, ApplicationCall>
 
 object QuoterV2Api {
 
@@ -28,23 +32,30 @@ object QuoterV2Api {
         AlreadyAttached,
         Error
     }
+    
 
-    suspend fun <T: Any> PipelineContext<Unit, ApplicationCall>.handle(func: () -> T, check: Boolean = true, respond: (T) -> Any = { it }) {
+    suspend fun <T: Any> Ctx.handle(func: suspend (IQuoterV2APIResolver) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
         try {
-            val result = func()
-            if (check && result is List<*> && result.isEmpty()) {
-                return call.respond(NotFound)
+            val params = if(call.request.httpMethod == HttpMethod.Get) call.parameters else call.receiveParameters()
+            val result = func(getResolver(params["resolver"]))
+            if(respond != null) {
+                if (check && result is List<*> && result.isEmpty()) {
+                    return call.respond(NotFound)
+              }
+                call.respond(respond(result))
             }
-
-            call.respond(respond(result))
-        } catch (e: Exception) {
+        }
+        catch (e: StatusCodeException) {
+            call.respond(e.code)
+        }
+        catch (e: Exception) {
             e.printStackTrace()
             call.respond(InternalServerError)
         }
     }
 
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestAdd(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
+    suspend fun Ctx.requestAdd(resolver: IQuoterV2APIResolver) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -69,14 +80,14 @@ object QuoterV2Api {
             return call.respond(BadRequest)
 
         try {
-            resolver.addQuote(table, adder, authors, content, displayType, attachments)
+            resolver.addQuote(adder, authors, content, displayType, attachments)
             call.respond(OK)
         } catch(e: SQLException) {
             call.respond(InternalServerError)
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestAttach(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
+    suspend fun Ctx.requestAttach(resolver: IQuoterV2APIResolver) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -90,14 +101,14 @@ object QuoterV2Api {
         val attachment = params["attachment"]
                 ?: return call.respond(BadRequest)
 
-        val quoteExists = resolver.isExists(table, id)
+        val quoteExists = resolver.isExists(id)
         val attachmentExists = AttachmentsApi.isExists(attachment)
 
         if (!quoteExists) return call.respond(NotFound)
         if (!attachmentExists) return call.respond(Gone)
 
         return try {
-            when (resolver.addAttachment(table, id, attachment)) {
+            when (resolver.addAttachment(id, attachment)) {
                 QuoterV2Api.AttachmentResult.Attached -> call.respond(OK)
                 QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(Conflict)
                 QuoterV2Api.AttachmentResult.Error -> call.respond(NotFound)
@@ -108,32 +119,32 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestGet(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
+    suspend fun Ctx.requestGet(resolver: IQuoterV2APIResolver) {
         val id = call.parameters["id"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
 
-        handle({ resolver.getById(table, id) }) { it.first() }
+        handle({ resolver.getById(id) }) { it.first() }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestFromTo(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
+    suspend fun Ctx.requestFromTo(resolver: IQuoterV2APIResolver) {
         val from = call.parameters["from"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         val to = call.parameters["to"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         if (from > to) return call.respond(BadRequest)
 
-        handle({ resolver.getRange(table, from, to) }, check=false)
+        handle({ resolver.getRange(from, to) }, check=false)
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestRandom(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
+    suspend fun Ctx.requestRandom(resolver: IQuoterV2APIResolver) {
         val count = (call.parameters["count"] ?: "1").toIntOrNull() ?:
         return call.respond(BadRequest)
         if (count < 0) return call.respond(BadRequest)
 
-        handle({ resolver.getRandom(table, count) }, check=false)
+        handle({ resolver.getRandom(count) }, check=false)
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.proceedEdit(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
+    suspend fun Ctx.proceedEdit(resolver: IQuoterV2APIResolver) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -150,7 +161,7 @@ object QuoterV2Api {
                 ?: return call.respond(BadRequest)
 
         try {
-            return if (resolver.editQuote(table, id, editedBy, System.currentTimeMillis(), newContent)) {
+            return if (resolver.editQuote(id, editedBy, System.currentTimeMillis(), newContent)) {
                 call.respond(OK)
             } else {
                 call.respond(NotFound)
@@ -161,7 +172,7 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.proceedFixIds(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
+    suspend fun Ctx.proceedFixIds(resolver: IQuoterV2APIResolver) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -170,7 +181,7 @@ object QuoterV2Api {
         }
 
         try {
-            resolver.fixIds(table)
+            resolver.fixIds()
             return call.respond(OK)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -178,12 +189,12 @@ object QuoterV2Api {
         }
     }
 
-    fun PipelineContext<Unit, ApplicationCall>.getResolver(): IQuoterV2APIResolver {
-        return QuoterV2APIDatabaseResolver
-    }
-
-    fun PipelineContext<Unit, ApplicationCall>.getTable(): QuoterTable {
-        return QuoterV2
+    private fun getResolver(spec: String?): IQuoterV2APIResolver {
+        try {
+            return ResolverRegistry.getResolver(spec ?: "uadaf")
+        } catch (e: NoSuchElementException) {
+            throw StatusCodeException(BadRequest)
+        }
     }
 
     fun Route.quoterV2() = route("quote") {
@@ -206,7 +217,7 @@ object QuoterV2Api {
          *  * OK - added
          *  * ISE - exception
          */
-        put("/") { requestAdd() }
+        put("/") { handle({ requestAdd(it) }, respond = null) }
 
         /**
         * Forbidden - access key not passed
@@ -218,7 +229,7 @@ object QuoterV2Api {
         * Conflict - already attached
         * ISE - exception
         */
-        put("attach") { requestAttach() }
+        put("attach") { handle({ requestAttach(it) }, respond = null) }
 
         /**
          * BadRequest - id not passed or invalid
@@ -226,33 +237,33 @@ object QuoterV2Api {
          * OK - succeed
          * ISE - exception
          */
-        get("{id}") { requestGet() }
+        get("{id}") { handle({ requestGet(it) }, respond = null) }
 
         /**
          * BadRequest - params not passed or invalid
          * OK - succeed
          * ISE - exception
          */
-        get("{from}/{to}") { requestFromTo() }
+        get("{from}/{to}") { handle({ requestFromTo(it) }, respond = null) }
 
         /**
          * BadRequest - params not passed or invalid
          * OK - succeed
          * ISE - exception
          */
-        get("random/{count?}") { requestRandom() }
+        get("random/{count?}") { handle({ requestRandom(it) }, respond = null) }
 
         /**
          * OK - succeed
          * ISE - exception
          */
-        get("all") { handle({ getResolver().getAll(getTable()) }, check=false) }
+        get("all") { handle({ it.getAll() }, check=false) }
 
         /**
          * OK - succeed
          * ISE - exception
          */
-        get("total") { handle({ getResolver().getTotal(getTable()) })  }
+        get("total") { handle({ it.getTotal() })  }
 
         /**
          * NotFound - quote doesn't exists
@@ -261,9 +272,9 @@ object QuoterV2Api {
          * OK - succeed
          * ISE - exception
          */
-        post("edit") { proceedEdit() }
+        post("edit") { handle({ proceedEdit(it) }, respond = null) }
 
-        post("fix_ids") { proceedFixIds() }
+        post("fix_ids") { handle({ proceedFixIds(it) }, respond = null) }
     }
 
 }
