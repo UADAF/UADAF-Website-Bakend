@@ -3,6 +3,7 @@ package api.quoterv2
 import Core
 import api.AttachmentsApi
 import api.quoterv2.resolvers.ResolverRegistry
+import dao.getTable
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpMethod
@@ -20,6 +21,7 @@ import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.*
 import io.ktor.util.pipeline.PipelineContext
+import utils.ImATeapot
 import utils.StatusCodeException
 import java.sql.SQLException
 
@@ -52,6 +54,33 @@ object QuoterV2Api {
         }
     }
 
+    suspend fun Ctx.requestNewRepo() {
+        val key = call.request.header("Access-Key")
+                ?: return call.respond(Forbidden)
+
+        if (!Core.verifyKey(key)) {
+            return call.respond(Unauthorized)
+        }
+
+        val params = call.receiveParameters()
+
+        val name = params["name"]
+                ?: return call.respond(BadRequest)
+
+        try {
+            val newTable = getTable(name, true)
+
+            if (newTable == null) {
+                call.respond(ImATeapot)
+            } else {
+                call.respond(OK)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            call.respond(InternalServerError)
+        }
+
+    }
 
     suspend fun Ctx.requestAdd(resolver: IQuoterV2APIResolver) {
         val key = call.request.header("Access-Key")
@@ -80,6 +109,7 @@ object QuoterV2Api {
             resolver.addQuote(adder, authors, content, displayType, attachments)
             call.respond(OK)
         } catch (e: SQLException) {
+            e.printStackTrace()
             call.respond(InternalServerError)
         }
     }
@@ -271,6 +301,8 @@ object QuoterV2Api {
         post("edit") { handle({ proceedEdit(it) }, respond = null) }
 
         post("fix_ids") { handle({ proceedFixIds(it) }, respond = null) }
+
+        put("repo") { requestNewRepo() }
     }
 
 }
