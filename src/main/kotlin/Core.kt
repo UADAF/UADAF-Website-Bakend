@@ -2,7 +2,7 @@ import api.AttachmentsApi.attachments
 import api.ITHApi.ith
 import api.MusicApi.music
 import api.QuoterApi.quoter
-import api.QuoterV2Api.quoterV2
+import api.quoterv2.QuoterV2Api.quoterV2
 import com.google.common.hash.Hashing
 import com.gt22.uadam.utils.obj
 import com.gt22.uadam.utils.str
