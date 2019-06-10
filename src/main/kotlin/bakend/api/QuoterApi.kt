@@ -1,7 +1,7 @@
-package api
+package bakend.api
 
-import verifyKey
-import dao.Quoter
+import bakend.verifyKey
+import bakend.dao.Quoter
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.http.HttpStatusCode.Companion.InternalServerError
@@ -14,7 +14,7 @@ import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
-import model.Quote
+import bakend.model.Quote
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like

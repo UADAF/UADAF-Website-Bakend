@@ -1,8 +1,10 @@
-import api.AttachmentsApi.attachments
-import api.ITHApi.ith
-import api.MusicApi.music
-import api.QuoterApi.quoter
-import api.quoterv2.QuoterV2Api.quoterV2
+package bakend
+
+import bakend.api.AttachmentsApi.attachments
+import bakend.api.ITHApi.ith
+import bakend.api.MusicApi.music
+import bakend.api.QuoterApi.quoter
+import bakend.api.quoterv2.QuoterV2Api.quoterV2
 import com.google.common.hash.Hashing
 import com.gt22.uadam.utils.obj
 import com.gt22.uadam.utils.str
@@ -16,8 +18,8 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import org.jetbrains.exposed.sql.Database
-import utils.jsonParser
-import web.QuoterWeb.quoterWeb
+import bakend.utils.jsonParser
+import bakend.web.QuoterWeb.quoterWeb
 import java.io.File
 import java.nio.charset.StandardCharsets
 
@@ -34,7 +36,7 @@ fun main(args: Array<String>) {
             }
         }
         routing {
-            route("api") {
+            route("bakend/apiend/api") {
                 quoter()
                 ith()
                 music()
@@ -44,7 +46,7 @@ fun main(args: Array<String>) {
                     quoterV2()
                 }
             }
-            route("web") {
+            route("bakend/webend/web") {
                 quoterWeb()
             }
             static("static") {

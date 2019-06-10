@@ -1,4 +1,4 @@
-package dao
+package bakend.dao
 
 import org.jetbrains.exposed.sql.Table
 

@@ -1,7 +1,7 @@
-package api.quoterv2.resolvers
+package bakend.api.quoterv2.resolvers
 
-import api.quoterv2.QuoterV2Api
-import model.QuoteV2
+import bakend.api.quoterv2.QuoterV2Api
+import bakend.model.QuoteV2
 
 
 interface IQuoterV2APIResolver {

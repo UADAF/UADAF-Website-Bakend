@@ -1,4 +1,4 @@
-package utils
+package bakend.utils
 
 import com.google.gson.JsonParser
 import io.ktor.http.HttpStatusCode

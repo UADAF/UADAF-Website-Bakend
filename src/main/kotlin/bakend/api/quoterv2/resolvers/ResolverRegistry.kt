@@ -1,10 +1,10 @@
-package api.quoterv2.resolvers
+package bakend.api.quoterv2.resolvers
 
-import dao.QuoterV2
-import dao.getTable
+import bakend.dao.QuoterV2
+import bakend.dao.getTable
 import io.ktor.http.HttpStatusCode
 import org.jetbrains.exposed.sql.transactions.transaction
-import utils.StatusCodeException
+import bakend.utils.StatusCodeException
 
 
 typealias ResolverCreator = (String) -> IQuoterV2APIResolver
@@ -41,8 +41,8 @@ object ResolverRegistry {
         register({ it.startsWith("uadaf") }) {
             val table = if (":" in it) {
                 transaction {
-                    getTable(it.split(":", limit = 2)[1], false) ?:
-                            throw StatusCodeException(HttpStatusCode.ExpectationFailed)
+                    getTable(it.split(":", limit = 2)[1], false)
+                            ?: throw StatusCodeException(HttpStatusCode.ExpectationFailed)
                 }
             } else {
                 QuoterV2

@@ -1,8 +1,8 @@
-package api.quoterv2.resolvers
+package bakend.api.quoterv2.resolvers
 
 import com.google.gson.JsonObject
 import com.gt22.uadam.utils.*
-import model.QuoteV2
+import bakend.model.QuoteV2
 import java.net.URL
 import kotlin.random.Random
 
@@ -26,7 +26,7 @@ object ModderPwResolver : ReadOnlyResolver() {
             }
         }
         return QuoteV2(q["id"].int, q["creator"].str, listOf("Цитатник Моддера"),
-                if(text.count { it == '\n' } > 1) "dialog" else "text",
+                if (text.count { it == '\n' } > 1) "dialog" else "text",
                 text.toString(), q["created_at"].asLong, "null", -1, attachments, false)
     }
 
@@ -60,7 +60,7 @@ object ModderPwResolver : ReadOnlyResolver() {
         while(ids.size < c) {
             ids.add(Random.nextInt(1, total + 1))
         }
-        return ids.map(::byId)
+        return ids.map(ModderPwResolver::byId)
     }
 
     override fun all(): List<QuoteV2> {

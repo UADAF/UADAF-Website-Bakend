@@ -1,4 +1,4 @@
-package api
+package bakend.api
 
 import config
 import com.google.gson.JsonElement
@@ -6,15 +6,14 @@ import com.google.gson.JsonPrimitive
 import com.gt22.uadam.data.Album
 import com.gt22.uadam.data.BaseData
 import com.gt22.uadam.data.MusicContext
-import com.gt22.uadam.utils.str
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.route
-import utils.ImATeapot
-import utils.json
+import bakend.utils.ImATeapot
+import bakend.utils.json
 import java.nio.file.Paths
 
 

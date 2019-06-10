@@ -1,6 +1,6 @@
-package api
+package bakend.api
 
-import dao.Users
+import bakend.dao.Users
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.http.HttpStatusCode.Companion.InternalServerError
@@ -15,7 +15,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import utils.json
+import bakend.utils.json
 import java.sql.SQLException
 
 

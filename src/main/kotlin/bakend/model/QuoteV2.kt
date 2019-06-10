@@ -1,7 +1,7 @@
-package model
+package bakend.model
 
 import com.google.gson.annotations.SerializedName
-import dao.QuoterV2
+import bakend.dao.QuoterV2
 import org.jetbrains.exposed.sql.ResultRow
 
 data class QuoteV2(

@@ -1,8 +1,8 @@
-package api
+package bakend.api
 
-import verifyKey
+import bakend.verifyKey
 import com.google.common.hash.Hashing
-import dao.Attachments
+import bakend.dao.Attachments
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode.Companion.Accepted
 import io.ktor.http.HttpStatusCode.Companion.BadRequest

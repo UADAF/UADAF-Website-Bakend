@@ -1,9 +1,9 @@
-package api.quoterv2
+package bakend.api.quoterv2
 
-import api.AttachmentsApi
-import api.quoterv2.resolvers.IQuoterV2APIResolver
-import api.quoterv2.resolvers.ResolverRegistry
-import dao.getTable
+import bakend.api.AttachmentsApi
+import bakend.api.quoterv2.resolvers.IQuoterV2APIResolver
+import bakend.api.quoterv2.resolvers.ResolverRegistry
+import bakend.dao.getTable
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpMethod
@@ -21,9 +21,9 @@ import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.*
 import io.ktor.util.pipeline.PipelineContext
-import utils.ImATeapot
-import utils.StatusCodeException
-import verifyKey
+import bakend.utils.ImATeapot
+import bakend.utils.StatusCodeException
+import bakend.verifyKey
 import java.sql.SQLException
 
 typealias Ctx = PipelineContext<Unit, ApplicationCall>
