@@ -2,6 +2,8 @@ package api.quoterv2
 
 import Core
 import api.AttachmentsApi
+import dao.QuoterTable
+import dao.QuoterV2
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
@@ -41,7 +43,8 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestAdd(resolver: IQuoterV2APIResolver = getResolver()) {
+
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestAdd(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -66,14 +69,14 @@ object QuoterV2Api {
             return call.respond(BadRequest)
 
         try {
-            resolver.addQuote(adder, authors, content, displayType, attachments)
+            resolver.addQuote(table, adder, authors, content, displayType, attachments)
             call.respond(OK)
         } catch(e: SQLException) {
             call.respond(InternalServerError)
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestAttach(resolver: IQuoterV2APIResolver = getResolver()) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestAttach(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -87,14 +90,14 @@ object QuoterV2Api {
         val attachment = params["attachment"]
                 ?: return call.respond(BadRequest)
 
-        val quoteExists = resolver.isExists(id)
+        val quoteExists = resolver.isExists(table, id)
         val attachmentExists = AttachmentsApi.isExists(attachment)
 
         if (!quoteExists) return call.respond(NotFound)
         if (!attachmentExists) return call.respond(Gone)
 
         return try {
-            when (resolver.addAttachment(id, attachment)) {
+            when (resolver.addAttachment(table, id, attachment)) {
                 QuoterV2Api.AttachmentResult.Attached -> call.respond(OK)
                 QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(Conflict)
                 QuoterV2Api.AttachmentResult.Error -> call.respond(NotFound)
@@ -105,32 +108,32 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestGet(resolver: IQuoterV2APIResolver = getResolver()) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestGet(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
         val id = call.parameters["id"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
 
-        handle({ resolver.getById(id) }) { it.first() }
+        handle({ resolver.getById(table, id) }) { it.first() }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestFromTo(resolver: IQuoterV2APIResolver = getResolver()) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestFromTo(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
         val from = call.parameters["from"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         val to = call.parameters["to"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         if (from > to) return call.respond(BadRequest)
 
-        handle({ resolver.getRange(from, to) }, check=false)
+        handle({ resolver.getRange(table, from, to) }, check=false)
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.requestRandom(resolver: IQuoterV2APIResolver = getResolver()) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.requestRandom(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
         val count = (call.parameters["count"] ?: "1").toIntOrNull() ?:
         return call.respond(BadRequest)
         if (count < 0) return call.respond(BadRequest)
 
-        handle({ resolver.getRandom(count) }, check=false)
+        handle({ resolver.getRandom(table, count) }, check=false)
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.proceedEdit(resolver: IQuoterV2APIResolver = getResolver()) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.proceedEdit(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -147,7 +150,7 @@ object QuoterV2Api {
                 ?: return call.respond(BadRequest)
 
         try {
-            return if (resolver.editQuote(id, editedBy, System.currentTimeMillis(), newContent)) {
+            return if (resolver.editQuote(table, id, editedBy, System.currentTimeMillis(), newContent)) {
                 call.respond(OK)
             } else {
                 call.respond(NotFound)
@@ -158,7 +161,7 @@ object QuoterV2Api {
         }
     }
 
-    suspend fun PipelineContext<Unit, ApplicationCall>.proceedFixIds(resolver: IQuoterV2APIResolver = getResolver()) {
+    suspend fun PipelineContext<Unit, ApplicationCall>.proceedFixIds(resolver: IQuoterV2APIResolver = getResolver(), table: QuoterTable = getTable()) {
         val key = call.request.header("Access-Key")
                 ?: return call.respond(Forbidden)
 
@@ -167,7 +170,7 @@ object QuoterV2Api {
         }
 
         try {
-            resolver.fixIds()
+            resolver.fixIds(table)
             return call.respond(OK)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -177,6 +180,10 @@ object QuoterV2Api {
 
     fun PipelineContext<Unit, ApplicationCall>.getResolver(): IQuoterV2APIResolver {
         return QuoterV2APIDatabaseResolver
+    }
+
+    fun PipelineContext<Unit, ApplicationCall>.getTable(): QuoterTable {
+        return QuoterV2
     }
 
     fun Route.quoterV2() = route("quote") {
@@ -239,13 +246,13 @@ object QuoterV2Api {
          * OK - succeed
          * ISE - exception
          */
-        get("all") { handle(getResolver()::getAll, check=false) }
+        get("all") { handle({ getResolver().getAll(getTable()) }, check=false) }
 
         /**
          * OK - succeed
          * ISE - exception
          */
-        get("total") { handle(getResolver()::getTotal)  }
+        get("total") { handle({ getResolver().getTotal(getTable()) })  }
 
         /**
          * NotFound - quote doesn't exists

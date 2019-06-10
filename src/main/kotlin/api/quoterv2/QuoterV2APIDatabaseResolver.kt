@@ -1,6 +1,6 @@
 package api.quoterv2
 
-import dao.QuoterV2
+import dao.QuoterTable
 import model.QuoteV2
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -8,8 +8,8 @@ import kotlin.random.Random
 
 object QuoterV2APIDatabaseResolver : IQuoterV2APIResolver {
 
-    override fun addQuote(adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>): Unit = transaction {
-        QuoterV2.insert {
+    override fun addQuote(table: QuoterTable, adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>): Unit = transaction {
+        table.insert {
             it[adder] = adderIn
             it[authors] = authorsIn
             it[content] = contentIn
@@ -18,18 +18,18 @@ object QuoterV2APIDatabaseResolver : IQuoterV2APIResolver {
         }
     }
 
-    override fun getById(id: Int): List<QuoteV2> = transaction {
-        QuoterV2.select { QuoterV2.id eq id }.map(::QuoteV2)
+    override fun getById(table: QuoterTable, id: Int): List<QuoteV2> = transaction {
+        table.select { table.id eq id }.map(::QuoteV2)
     }
 
-    override fun getRange(from: Int, to: Int): List<QuoteV2> = transaction {
-        QuoterV2.select { (QuoterV2.id greaterEq from) and (QuoterV2.id lessEq to) }.map(::QuoteV2)
+    override fun getRange(table: QuoterTable, from: Int, to: Int): List<QuoteV2> = transaction {
+        table.select { (table.id greaterEq from) and (table.id lessEq to) }.map(::QuoteV2)
     }
 
-    override fun getTotal(): Int = transaction { QuoterV2.selectAll().count() }
+    override fun getTotal(table: QuoterTable): Int = transaction { table.selectAll().count() }
 
-    override fun getRandom(c: Int): List<QuoteV2> = transaction {
-        val total =  QuoterV2.selectAll().count()
+    override fun getRandom(table: QuoterTable, c: Int): List<QuoteV2> = transaction {
+        val total =  table.selectAll().count()
         val count = Integer.min(c, total)
         val indexes = (0..total).toMutableList()
 
@@ -37,46 +37,46 @@ object QuoterV2APIDatabaseResolver : IQuoterV2APIResolver {
             indexes.removeAt(Random.nextInt(indexes.size))
         }
 
-        return@transaction QuoterV2.select { QuoterV2.id inList indexes }.map(::QuoteV2)
+        return@transaction table.select { table.id inList indexes }.map(::QuoteV2)
     }
 
-    override fun fixIds() = transaction {
-        val allIds = QuoterV2.slice(QuoterV2.id).selectAll().map { it[QuoterV2.id] }
+    override fun fixIds(table: QuoterTable) = transaction {
+        val allIds = table.slice(table.id).selectAll().map { it[table.id] }
 
         allIds.forEachIndexed { index, id ->
             if (index + 1 != id) {
-                QuoterV2.update({
-                    QuoterV2.id eq id
+                table.update({
+                    table.id eq id
                 }) {
-                    it[QuoterV2.id] = index + 1
+                    it[table.id] = index + 1
                 }
             }
         }
     }
 
-    override fun getAll(): List<QuoteV2> = transaction {
-        QuoterV2.selectAll().map(::QuoteV2)
+    override fun getAll(table: QuoterTable): List<QuoteV2> = transaction {
+        table.selectAll().map(::QuoteV2)
     }
 
-    override fun isExists(id: Int): Boolean = transaction {
-        QuoterV2.select { QuoterV2.id eq id }.count() > 0
+    override fun isExists(table: QuoterTable, id: Int): Boolean = transaction {
+        table.select { table.id eq id }.count() > 0
     }
 
-    override fun addAttachment(id: Int, attachment: String): QuoterV2Api.AttachmentResult = transaction {
-        val oldAttachments = QuoterV2.select { QuoterV2.id eq id }.map(::QuoteV2).first().attachments.toTypedArray()
+    override fun addAttachment(table: QuoterTable, id: Int, attachment: String): QuoterV2Api.AttachmentResult = transaction {
+        val oldAttachments = table.select { table.id eq id }.map(::QuoteV2).first().attachments.toTypedArray()
         if (attachment in oldAttachments) return@transaction QuoterV2Api.AttachmentResult.AlreadyAttached
         val newAttachments = listOf(*oldAttachments, attachment).joinToString(";")
 
-        return@transaction if (QuoterV2.update({ QuoterV2.id eq id }) { it[attachments] = newAttachments } != 0) {
+        return@transaction if (table.update({ table.id eq id }) { it[attachments] = newAttachments } != 0) {
             QuoterV2Api.AttachmentResult.Attached
         } else {
             QuoterV2Api.AttachmentResult.Error
         }
     }
 
-    override fun editQuote(idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String) = transaction {
-        val oldContent = QuoterV2.select { QuoterV2.id eq idIn }.map(::QuoteV2).first().content
-        QuoterV2.update({ QuoterV2.id eq idIn }) {
+    override fun editQuote(table: QuoterTable, idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String) = transaction {
+        val oldContent = table.select { table.id eq idIn }.map(::QuoteV2).first().content
+        table.update({ table.id eq idIn }) {
             it[editedBy] = editedByIn
             it[editedAt] = editedAtIn
             it[previousContent] = oldContent

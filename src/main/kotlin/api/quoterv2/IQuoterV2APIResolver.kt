@@ -1,28 +1,29 @@
 package api.quoterv2
 
+import dao.QuoterTable
 import model.QuoteV2
 
 
 interface IQuoterV2APIResolver {
 
-    fun addQuote(adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>)
+    fun addQuote(table: QuoterTable, adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>)
 
-    fun getById(id: Int): List<QuoteV2>
+    fun getById(table: QuoterTable, id: Int): List<QuoteV2>
 
-    fun getRange(from: Int, to: Int): List<QuoteV2>
+    fun getRange(table: QuoterTable, from: Int, to: Int): List<QuoteV2>
 
-    fun getTotal(): Int
+    fun getTotal(table: QuoterTable): Int
 
-    fun getRandom(c: Int): List<QuoteV2>
+    fun getRandom(table: QuoterTable, c: Int): List<QuoteV2>
 
-    fun getAll(): List<QuoteV2>
+    fun getAll(table: QuoterTable): List<QuoteV2>
 
-    fun isExists(id: Int): Boolean
+    fun isExists(table: QuoterTable, id: Int): Boolean
 
-    fun addAttachment(id: Int, attachment: String): QuoterV2Api.AttachmentResult
+    fun addAttachment(table: QuoterTable, id: Int, attachment: String): QuoterV2Api.AttachmentResult
 
-    fun editQuote(idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String): Boolean
+    fun editQuote(table: QuoterTable, idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String): Boolean
 
-    fun fixIds()
+    fun fixIds(table: QuoterTable)
 
 }
