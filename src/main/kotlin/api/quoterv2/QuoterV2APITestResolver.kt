@@ -3,6 +3,7 @@ package api.quoterv2
 import model.QuoteV2
 
 object QuoterV2APITestResolver : IQuoterV2APIResolver {
+
     override fun addQuote(adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
@@ -42,4 +43,5 @@ object QuoterV2APITestResolver : IQuoterV2APIResolver {
     override fun fixIds() {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
+
 }

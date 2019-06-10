@@ -24,7 +24,7 @@ object Quoter : Table("quoter") {
 object  Tokens : Table("tokens") {
     val token = varchar("token", 255).primaryKey()
     val userId = integer("user_id")
-    val issued_at = datetime("issued_at")
+    val issuedAt = datetime("issued_at")
 }
 
 object Users : Table("users") {
