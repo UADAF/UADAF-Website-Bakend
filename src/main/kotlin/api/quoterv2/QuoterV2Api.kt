@@ -32,23 +32,21 @@ object QuoterV2Api {
         AlreadyAttached,
         Error
     }
-    
 
-    suspend fun <T: Any> Ctx.handle(func: suspend (IQuoterV2APIResolver) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
+
+    suspend fun <T : Any> Ctx.handle(func: suspend (IQuoterV2APIResolver) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
         try {
-            val params = if(call.request.httpMethod == HttpMethod.Get) call.parameters else call.receiveParameters()
+            val params = if (call.request.httpMethod == HttpMethod.Get) call.parameters else call.receiveParameters()
             val result = func(getResolver(params["resolver"]))
-            if(respond != null) {
+            if (respond != null) {
                 if (check && result is List<*> && result.isEmpty()) {
                     return call.respond(NotFound)
-              }
+                }
                 call.respond(respond(result))
             }
-        }
-        catch (e: StatusCodeException) {
+        } catch (e: StatusCodeException) {
             call.respond(e.code)
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
             call.respond(InternalServerError)
         }
@@ -73,8 +71,7 @@ object QuoterV2Api {
                 ?: "text"
         val content = params["content"]
                 ?: return call.respond(BadRequest)
-        val attachments = params["attachments"]?.split(";") ?:
-        emptyList()
+        val attachments = params["attachments"]?.split(";") ?: emptyList()
 
         if (displayType !in setOf("text", "dialog"))
             return call.respond(BadRequest)
@@ -82,7 +79,7 @@ object QuoterV2Api {
         try {
             resolver.addQuote(adder, authors, content, displayType, attachments)
             call.respond(OK)
-        } catch(e: SQLException) {
+        } catch (e: SQLException) {
             call.respond(InternalServerError)
         }
     }
@@ -133,15 +130,14 @@ object QuoterV2Api {
                 ?: return call.respond(BadRequest)
         if (from > to) return call.respond(BadRequest)
 
-        handle({ resolver.getRange(from, to) }, check=false)
+        handle({ resolver.getRange(from, to) }, check = false)
     }
 
     suspend fun Ctx.requestRandom(resolver: IQuoterV2APIResolver) {
-        val count = (call.parameters["count"] ?: "1").toIntOrNull() ?:
-        return call.respond(BadRequest)
+        val count = (call.parameters["count"] ?: "1").toIntOrNull() ?: return call.respond(BadRequest)
         if (count < 0) return call.respond(BadRequest)
 
-        handle({ resolver.getRandom(count) }, check=false)
+        handle({ resolver.getRandom(count) }, check = false)
     }
 
     suspend fun Ctx.proceedEdit(resolver: IQuoterV2APIResolver) {
@@ -166,7 +162,7 @@ object QuoterV2Api {
             } else {
                 call.respond(NotFound)
             }
-        } catch(e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
             call.respond(InternalServerError)
         }
@@ -220,15 +216,15 @@ object QuoterV2Api {
         put("/") { handle({ requestAdd(it) }, respond = null) }
 
         /**
-        * Forbidden - access key not passed
-        * Unauthorized - access key is invalid
-        * BadRequest - necessary params not passed
-        * OK - attached
-        * NotFound - quote doesn't exists
-        * Gone - attachment doesn't exists
-        * Conflict - already attached
-        * ISE - exception
-        */
+         * Forbidden - access key not passed
+         * Unauthorized - access key is invalid
+         * BadRequest - necessary params not passed
+         * OK - attached
+         * NotFound - quote doesn't exists
+         * Gone - attachment doesn't exists
+         * Conflict - already attached
+         * ISE - exception
+         */
         put("attach") { handle({ requestAttach(it) }, respond = null) }
 
         /**
@@ -257,13 +253,13 @@ object QuoterV2Api {
          * OK - succeed
          * ISE - exception
          */
-        get("all") { handle({ it.getAll() }, check=false) }
+        get("all") { handle({ it.getAll() }, check = false) }
 
         /**
          * OK - succeed
          * ISE - exception
          */
-        get("total") { handle({ it.getTotal() })  }
+        get("total") { handle({ it.getTotal() }) }
 
         /**
          * NotFound - quote doesn't exists
