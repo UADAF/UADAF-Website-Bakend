@@ -1,8 +1,16 @@
 package api
 
+import verifyKey
 import com.google.common.hash.Hashing
 import dao.Attachments
 import io.ktor.application.call
+import io.ktor.http.HttpStatusCode.Companion.Accepted
+import io.ktor.http.HttpStatusCode.Companion.BadRequest
+import io.ktor.http.HttpStatusCode.Companion.Forbidden
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
+import io.ktor.http.HttpStatusCode.Companion.NotFound
+import io.ktor.http.HttpStatusCode.Companion.OK
+import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 import io.ktor.request.header
 import io.ktor.request.receiveStream
 import io.ktor.response.header
@@ -15,18 +23,10 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.nio.charset.StandardCharsets
 import java.sql.Blob
 
-import io.ktor.http.HttpStatusCode.Companion.BadRequest
-import io.ktor.http.HttpStatusCode.Companion.Unauthorized
-import io.ktor.http.HttpStatusCode.Companion.Forbidden
-import io.ktor.http.HttpStatusCode.Companion.OK
-import io.ktor.http.HttpStatusCode.Companion.Accepted
-import io.ktor.http.HttpStatusCode.Companion.NotFound
-import io.ktor.http.HttpStatusCode.Companion.InternalServerError
-
 
 object AttachmentsApi {
 
-    fun putAttachment(id: String, type: String, data: ByteArray) {
+    private fun putAttachment(id: String, type: String, data: ByteArray) {
         transaction {
             val blob = connection.createBlob()
             blob.setBytes(1, data)
@@ -38,19 +38,14 @@ object AttachmentsApi {
         }
     }
 
-    fun getAttachment(id: String): Pair<String, Blob>? {
+    private fun getAttachment(id: String): Pair<String, Blob>? {
         return transaction {
-            val rows = Attachments.select { Attachments.id eq id }
-            if (rows.count() > 0) {
-                val row = rows.firstOrNull() ?: return@transaction null
-                return@transaction row[Attachments.type].toString() to row[Attachments.data]
-            } else {
-                return@transaction null
-            }
+            val row = Attachments.select { Attachments.id eq id }.firstOrNull() ?: return@transaction null
+            return@transaction row[Attachments.type].toString() to row[Attachments.data]
         }
     }
 
-    fun isExists(id: String): Boolean = transaction {
+    fun exists(id: String): Boolean = transaction {
         Attachments.select { Attachments.id eq id }.count() > 0
     }
 
@@ -58,7 +53,7 @@ object AttachmentsApi {
         put("/") {
             val key = call.request.header("Access-Key")
                     ?: return@put call.respond(Forbidden)
-            if (!Core.verifyKey(key)) {
+            if (!verifyKey(key)) {
                 return@put call.respond(Unauthorized)
             }
 
@@ -79,7 +74,7 @@ object AttachmentsApi {
             val key = call.request.header("Access-Key")
                     ?: return@get call.respond(Forbidden)
 
-            if (!Core.verifyKey(key)) {
+            if (!verifyKey(key)) {
                 return@get call.respond(Unauthorized)
             }
 
@@ -98,7 +93,7 @@ object AttachmentsApi {
             val key = call.request.header("Access-Key")
                     ?: return@delete call.respond(Forbidden)
 
-            if (!Core.verifyKey(key)) {
+            if (!verifyKey(key)) {
                 return@delete call.respond(Unauthorized)
             }
 

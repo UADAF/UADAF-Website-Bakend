@@ -52,7 +52,7 @@ dependencies {
 tasks {
     withType<Jar> {
         manifest {
-            attributes(mapOf("Main-Class" to "Core"))
+            attributes(mapOf("Main-Class" to "CoreKt"))
         }
         archiveName = "${application.applicationName}-$version.jar"
         from(configurations.compile.map {

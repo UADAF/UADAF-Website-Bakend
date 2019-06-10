@@ -3,7 +3,6 @@ package api.quoterv2.resolvers
 import com.google.gson.JsonObject
 import com.gt22.uadam.utils.*
 import model.QuoteV2
-import java.lang.StringBuilder
 import java.net.URL
 import kotlin.random.Random
 
@@ -31,16 +30,12 @@ object ModderPwResolver : ReadOnlyResolver() {
                 text.toString(), q["created_at"].asLong, "null", -1, attachments, false)
     }
 
-    private fun getQuote(id: Int) = unwrapJson(parse("https://modder.pw/api/get.php?id=$id"))
+    override fun byId(id: Int): QuoteV2 = unwrapJson(parse("https://modder.pw/api/get.php?id=$id"))
 
-    override fun getById(id: Int): List<QuoteV2> {
-        return listOf(getQuote(id))
-    }
-
-    override fun getRange(from: Int, to: Int): List<QuoteV2> {
+    override fun range(from: Int, to: Int): List<QuoteV2> {
         val ret = mutableListOf<QuoteV2>()
         for(i in from..to) {
-            ret.add(getQuote(i))
+            ret.add(byId(i))
         }
         return ret
     }
@@ -51,33 +46,33 @@ object ModderPwResolver : ReadOnlyResolver() {
         return substring(nStart, nEnd)
     }
 
-    override fun getTotal(): Int {
+    override fun total(): Int {
         val html = URL("https://modder.pw/new/").readText()
         return html.extractBetween("Цитата #", "</a>").toInt()
     }
 
-    override fun getRandom(c: Int): List<QuoteV2> {
+    override fun random(c: Int): List<QuoteV2> {
         val ids = mutableSetOf<Int>()
-        val total = getTotal()
+        val total = total()
         if(c >= total) {
-            return getAll()
+            return all()
         }
         while(ids.size < c) {
             ids.add(Random.nextInt(1, total + 1))
         }
-        return ids.map(::getQuote)
+        return ids.map(::byId)
     }
 
-    override fun getAll(): List<QuoteV2> {
-        val total = getTotal()
+    override fun all(): List<QuoteV2> {
+        val total = total()
         val ret = mutableListOf<QuoteV2>()
         for (i in 1..total) {
-            ret.add(getQuote(i))
+            ret.add(byId(i))
         }
         return ret
     }
 
-    override fun isExists(id: Int): Boolean {
+    override fun exists(id: Int): Boolean {
         return parse("https://modder.pw/api/get.php?id=$id")["success"].bln
     }
 }

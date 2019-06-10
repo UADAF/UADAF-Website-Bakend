@@ -6,23 +6,23 @@ import model.QuoteV2
 
 interface IQuoterV2APIResolver {
 
-    fun addQuote(adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>)
+    fun add(adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>)
 
-    fun getById(id: Int): List<QuoteV2>
+    fun byId(id: Int): QuoteV2
 
-    fun getRange(from: Int, to: Int): List<QuoteV2>
+    fun range(from: Int, to: Int): List<QuoteV2>
 
-    fun getTotal(): Int
+    fun total(): Int
 
-    fun getRandom(c: Int): List<QuoteV2>
+    fun random(c: Int): List<QuoteV2>
 
-    fun getAll(): List<QuoteV2>
+    fun all(): List<QuoteV2>
 
-    fun isExists(id: Int): Boolean
+    fun exists(id: Int): Boolean
 
-    fun addAttachment(id: Int, attachment: String): QuoterV2Api.AttachmentResult
+    fun attach(id: Int, attachment: String): QuoterV2Api.AttachmentResult
 
-    fun editQuote(idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String): Boolean
+    fun edit(idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String): Boolean
 
     fun fixIds()
 

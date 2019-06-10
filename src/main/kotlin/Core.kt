@@ -21,46 +21,42 @@ import web.QuoterWeb.quoterWeb
 import java.io.File
 import java.nio.charset.StandardCharsets
 
-object Core {
 
-    val config =  jsonParser.parse(File("config.json").readText()).obj
-    private val connectUrl = "jdbc:mysql://${config["host"]!!.str}:3306/${config["database"]!!.str}?useUnicode=yes&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=UTC"
+val config = jsonParser.parse(File("config.json").readText()).obj
+private val connectUrl = "jdbc:mysql://${config["host"]!!.str}:3306/${config["database"]!!.str}?useUnicode=yes&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=UTC"
 
-    @JvmStatic
-    fun main(args: Array<String>) {
+fun main(args: Array<String>) {
 
-        val server = embeddedServer(Netty, 6741){
-            install(ContentNegotiation) {
-                gson {
-                    setPrettyPrinting()
-                }
-            }
-            routing{
-                route("api") {
-                    quoter()
-                    ith()
-                    music()
-
-                    route ("v2") {
-                        attachments()
-                        quoterV2()
-                    }
-                }
-                route("web") {
-                    quoterWeb()
-                }
-                static("static") {
-                    files("styles")
-                }
+    val server = embeddedServer(Netty, 6741) {
+        install(ContentNegotiation) {
+            gson {
+                setPrettyPrinting()
             }
         }
-        Database.connect(connectUrl, "com.mysql.cj.jdbc.Driver", config["user"]!!.str, config["pass"]!!.str)
-        server.start(wait = true)
-    }
+        routing {
+            route("api") {
+                quoter()
+                ith()
+                music()
 
-    fun verifyKey(key: String): Boolean {
-        return Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString() ==
-                "bf077926f1f26e2e3552001461c1e51ec078c7d488f1519bd570cc86f0efeb1a"
+                route("v2") {
+                    attachments()
+                    quoterV2()
+                }
+            }
+            route("web") {
+                quoterWeb()
+            }
+            static("static") {
+                files("styles")
+            }
+        }
     }
+    Database.connect(connectUrl, "com.mysql.cj.jdbc.Driver", config["user"]!!.str, config["pass"]!!.str)
+    server.start(wait = true)
+}
 
+fun verifyKey(key: String): Boolean {
+    return Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString() ==
+            "bf077926f1f26e2e3552001461c1e51ec078c7d488f1519bd570cc86f0efeb1a"
 }

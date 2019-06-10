@@ -1,10 +1,8 @@
 package model
 
 import com.google.gson.annotations.SerializedName
-import dao.Quoter
 import dao.QuoterV2
 import org.jetbrains.exposed.sql.ResultRow
-import org.joda.time.DateTime
 
 data class QuoteV2(
         val id: Int,

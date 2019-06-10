@@ -1,7 +1,13 @@
 package api
 
+import verifyKey
 import dao.Quoter
 import io.ktor.application.call
+import io.ktor.http.HttpStatusCode.Companion.BadRequest
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
+import io.ktor.http.HttpStatusCode.Companion.NotFound
+import io.ktor.http.HttpStatusCode.Companion.OK
+import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Route
@@ -16,12 +22,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.SQLException
 import java.util.Date
 import kotlin.random.Random
-
-import io.ktor.http.HttpStatusCode.Companion.BadRequest
-import io.ktor.http.HttpStatusCode.Companion.InternalServerError
-import io.ktor.http.HttpStatusCode.Companion.NotFound
-import io.ktor.http.HttpStatusCode.Companion.OK
-import io.ktor.http.HttpStatusCode.Companion.Unauthorized
 
 object QuoterApi {
 
@@ -174,7 +174,7 @@ object QuoterApi {
             val author = params["author"] ?: return@post call.respond(BadRequest)
             val quote = params["quote"] ?: return@post call.respond(BadRequest)
 
-            if (!Core.verifyKey(key)) {
+            if (!verifyKey(key)) {
                 return@post call.respond(Unauthorized)
             }
             try {
@@ -192,7 +192,7 @@ object QuoterApi {
             val editedBy = params["edited_by"] ?: return@post call.respond(BadRequest)
             val newText = params["new_text"] ?: return@post call.respond(BadRequest)
 
-            if (!Core.verifyKey(key)) {
+            if (!verifyKey(key)) {
                 return@post call.respond(Unauthorized)
             }
 

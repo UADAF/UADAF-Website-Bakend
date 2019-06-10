@@ -9,7 +9,7 @@ import kotlin.random.Random
 
 class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2APIResolver {
 
-    override fun addQuote(adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>): Unit = transaction {
+    override fun add(adderIn: String, authorsIn: String, displayTypeIn: String, contentIn: String, attachmentsIn: List<String>): Unit = transaction {
         table.insert {
             it[adder] = adderIn
             it[authors] = authorsIn
@@ -19,17 +19,17 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
         }
     }
 
-    override fun getById(id: Int): List<QuoteV2> = transaction {
-        table.select { table.id eq id }.map(::QuoteV2)
+    override fun byId(id: Int): QuoteV2 = transaction {
+        table.select { table.id eq id }.map(::QuoteV2).first()
     }
 
-    override fun getRange(from: Int, to: Int): List<QuoteV2> = transaction {
+    override fun range(from: Int, to: Int): List<QuoteV2> = transaction {
         table.select { (table.id greaterEq from) and (table.id lessEq to) }.map(::QuoteV2)
     }
 
-    override fun getTotal(): Int = transaction { table.selectAll().count() }
+    override fun total(): Int = transaction { table.selectAll().count() }
 
-    override fun getRandom(c: Int): List<QuoteV2> = transaction {
+    override fun random(c: Int): List<QuoteV2> = transaction {
         val total =  table.selectAll().count()
         val count = Integer.min(c, total)
         val indexes = (0..total).toMutableList()
@@ -55,15 +55,15 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
         }
     }
 
-    override fun getAll(): List<QuoteV2> = transaction {
+    override fun all(): List<QuoteV2> = transaction {
         table.selectAll().map(::QuoteV2)
     }
 
-    override fun isExists(id: Int): Boolean = transaction {
+    override fun exists(id: Int): Boolean = transaction {
         table.select { table.id eq id }.count() > 0
     }
 
-    override fun addAttachment(id: Int, attachment: String): QuoterV2Api.AttachmentResult = transaction {
+    override fun attach(id: Int, attachment: String): QuoterV2Api.AttachmentResult = transaction {
         val oldAttachments = table.select { table.id eq id }.map(::QuoteV2).first().attachments.toTypedArray()
         if (attachment in oldAttachments) return@transaction QuoterV2Api.AttachmentResult.AlreadyAttached
         val newAttachments = listOf(*oldAttachments, attachment).joinToString(";")
@@ -75,7 +75,7 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
         }
     }
 
-    override fun editQuote(idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String) = transaction {
+    override fun edit(idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String) = transaction {
         val oldContent = table.select { table.id eq idIn }.map(::QuoteV2).first().content
         table.update({ table.id eq idIn }) {
             it[editedBy] = editedByIn
