@@ -1,6 +1,6 @@
 package bakend.api
 
-import config
+import bakend.config
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
 import com.gt22.uadam.data.Album
@@ -14,6 +14,7 @@ import io.ktor.routing.get
 import io.ktor.routing.route
 import bakend.utils.ImATeapot
 import bakend.utils.json
+import com.gt22.uadam.utils.str
 import java.nio.file.Paths
 
 
