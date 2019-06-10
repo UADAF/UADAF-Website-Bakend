@@ -52,7 +52,7 @@ dependencies {
 tasks {
     withType<Jar> {
         manifest {
-            attributes(mapOf("Main-Class" to "CoreKt"))
+            attributes(mapOf("Main-Class" to "bakend.CoreKt"))
         }
         archiveName = "${application.applicationName}-$version.jar"
         from(configurations.compile.map {
