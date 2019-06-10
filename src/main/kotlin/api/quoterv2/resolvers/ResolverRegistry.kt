@@ -4,7 +4,9 @@ import api.quoterv2.IQuoterV2APIResolver
 import api.quoterv2.QuoterV2APIDatabaseResolver
 import dao.QuoterV2
 import dao.getTable
+import io.ktor.http.HttpStatusCode
 import org.jetbrains.exposed.sql.transactions.transaction
+import utils.StatusCodeException
 import java.util.function.Predicate
 
 
@@ -42,7 +44,8 @@ object ResolverRegistry {
         register({ it.startsWith("uadaf") }) {
             val table = if (":" in it) {
                 transaction {
-                    getTable(it.split(":", limit = 2)[1], true)!!
+                    getTable(it.split(":", limit = 2)[1], false) ?:
+                            throw StatusCodeException(HttpStatusCode.ExpectationFailed)
                 }
             } else {
                 QuoterV2
