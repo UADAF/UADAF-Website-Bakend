@@ -33,20 +33,6 @@ object Users : Table("users") {
     val rate = integer("rate")
 }
 
-object QuoterV2 : Table("quoterv2") {
-    val id = integer("id").primaryKey().autoIncrement()
-    val adder = text("adder")
-    val authors = text("authors")
-    val date = datetime("date")
-    val dtype = text("dtype")
-    val content = text("content")
-    val editedBy = text("edited_by").nullable()
-    val editedAt = long("edited_at").nullable()
-    val previousContent = text("previous_content").nullable()
-    val attachments = text("attachments")
-    val isOld = bool("is_old")
-}
-
 object Attachments : Table("attachments") {
     val id = text("id")
     val type = text("type")
