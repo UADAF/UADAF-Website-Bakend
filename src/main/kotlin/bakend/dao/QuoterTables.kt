@@ -1,13 +1,21 @@
 package bakend.dao
 
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Function
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.joda.time.DateTime
+
+object MysqlCurrentTimestamp : Function<DateTime>(DateColumnType(false)) {
+
+    override fun toSQL(queryBuilder: QueryBuilder) = "CURRENT_TIMESTAMP(6)"
+
+}
 
 open class QuoterTable(name: String) : Table(name) {
     val id = integer("id").primaryKey().autoIncrement()
     val adder = text("adder")
     val authors = text("authors")
-    val date = datetime("date").defaultExpression(CurrentDateTime())
+    val date = datetime("date").defaultExpression(MysqlCurrentTimestamp)
     val dtype = text("dtype")
     val content = text("content")
     val editedBy = text("edited_by").nullable()
