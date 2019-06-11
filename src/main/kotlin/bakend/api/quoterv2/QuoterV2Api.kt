@@ -1,6 +1,7 @@
 package bakend.api.quoterv2
 
 import bakend.api.AttachmentsApi
+import bakend.api.AttachmentsApi.attachments
 import bakend.api.quoterv2.resolvers.IQuoterV2APIResolver
 import bakend.api.quoterv2.resolvers.ResolverRegistry
 import bakend.dao.getTable
@@ -24,6 +25,7 @@ import io.ktor.util.pipeline.PipelineContext
 import bakend.utils.ImATeapot
 import bakend.utils.StatusCodeException
 import bakend.verifyKey
+import io.ktor.http.Parameters
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.SQLException
 
@@ -38,10 +40,12 @@ object QuoterV2Api {
     }
 
 
-    private suspend fun <T : Any> Ctx.handle(func: suspend (IQuoterV2APIResolver) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
+    private data class RequestCtx(val params: Parameters, val resolver: IQuoterV2APIResolver)
+
+    private suspend fun <T : Any> Ctx.handle(func: suspend (RequestCtx) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
         try {
             val params = if (call.request.httpMethod == HttpMethod.Get) call.parameters else call.receiveParameters()
-            val result = func(getResolver(params["resolver"]))
+            val result = func(RequestCtx(params, getResolver(params["resolver"])))
             if (respond != null) {
                 if (check && result is List<*> && result.isEmpty()) {
                     return call.respond(NotFound)
@@ -57,11 +61,11 @@ object QuoterV2Api {
     }
 
     private suspend fun Ctx.requestNewRepo() {
-        val key = call.request.header("Access-Key")
-                ?: return call.respond(Forbidden)
+        val key = call.request.header("X-Access-Key")
+                ?: return call.respond(Unauthorized)
 
         if (!verifyKey(key)) {
-            return call.respond(Unauthorized)
+            return call.respond(Forbidden)
         }
 
         val params = call.receiveParameters()
@@ -84,15 +88,14 @@ object QuoterV2Api {
 
     }
 
-    private suspend fun Ctx.requestAdd(resolver: IQuoterV2APIResolver) {
-        val key = call.request.header("Access-Key")
-                ?: return call.respond(Forbidden)
+    private suspend fun Ctx.requestAdd(ctx: RequestCtx) {
+        val (params, resolver) = ctx
+        val key = call.request.header("X-Access-Key")
+                ?: return call.respond(Unauthorized)
 
         if (!verifyKey(key)) {
-            return call.respond(Unauthorized)
+            return call.respond(Forbidden)
         }
-
-        val params = call.receiveParameters()
 
         val adder = params["adder"]
                 ?: return call.respond(BadRequest)
@@ -108,7 +111,7 @@ object QuoterV2Api {
             return call.respond(BadRequest)
 
         try {
-            resolver.add(adder, authors, content, displayType, attachments)
+            resolver.add(adder, authors, displayType, content, attachments)
             call.respond(OK)
         } catch (e: SQLException) {
             e.printStackTrace()
@@ -116,15 +119,15 @@ object QuoterV2Api {
         }
     }
 
-    private suspend fun Ctx.requestAttach(resolver: IQuoterV2APIResolver) {
-        val key = call.request.header("Access-Key")
-                ?: return call.respond(Forbidden)
+    private suspend fun Ctx.requestAttach(ctx: RequestCtx) {
+        val (params, resolver) = ctx
+        val key = call.request.header("X-Access-Key")
+                ?: return call.respond(Unauthorized)
 
         if (!verifyKey(key)) {
-            return call.respond(Unauthorized)
+            return call.respond(Forbidden)
         }
 
-        val params = call.receiveParameters()
         val id = params["id"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         val attachment = params["attachment"]
@@ -148,45 +151,53 @@ object QuoterV2Api {
         }
     }
 
-    private suspend fun Ctx.requestGet(resolver: IQuoterV2APIResolver) {
-        val id = call.parameters["id"]?.toIntOrNull()
+    private suspend fun Ctx.requestGet(ctx: RequestCtx) {
+        val (params, resolver) = ctx
+        val id = params["id"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
-
+        if(!resolver.exists(id)) {
+            return call.respond(NotFound)
+        }
         handle({ resolver.byId(id) })
     }
 
-    private suspend fun Ctx.requestFromTo(resolver: IQuoterV2APIResolver) {
-        val from = call.parameters["from"]?.toIntOrNull()
+    private suspend fun Ctx.requestFromTo(ctx: RequestCtx) {
+        val (params, resolver) = ctx
+        val from = params["from"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
-        val to = call.parameters["to"]?.toIntOrNull()
+        val to = params["to"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         if (from > to) return call.respond(BadRequest)
 
         handle({ resolver.range(from, to) }, check = false)
     }
 
-    private suspend fun Ctx.requestRandom(resolver: IQuoterV2APIResolver) {
-        val count = (call.parameters["count"] ?: "1").toIntOrNull() ?: return call.respond(BadRequest)
+    private suspend fun Ctx.requestRandom(ctx: RequestCtx) {
+        val (params, resolver) = ctx
+        val count = (params["count"] ?: "1").toIntOrNull() ?: return call.respond(BadRequest)
         if (count < 0) return call.respond(BadRequest)
 
         handle({ resolver.random(count) }, check = false)
     }
 
-    private suspend fun Ctx.proceedEdit(resolver: IQuoterV2APIResolver) {
-        val key = call.request.header("Access-Key")
-                ?: return call.respond(Forbidden)
+    private suspend fun Ctx.proceedEdit(ctx: RequestCtx) {
+        val (params, resolver) = ctx
+        val key = call.request.header("X-Access-Key")
+                ?: return call.respond(Unauthorized)
 
         if (!verifyKey(key)) {
-            return call.respond(Unauthorized)
+            return call.respond(Forbidden)
         }
 
-        val params = call.receiveParameters()
         val id = params["id"]?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         val editedBy = params["edited_by"]
                 ?: return call.respond(BadRequest)
         val newContent = params["new_content"]
                 ?: return call.respond(BadRequest)
+
+        val quoteExists = resolver.exists(id)
+        if(!quoteExists) return call.respond(NotFound)
 
         try {
             return if (resolver.edit(id, editedBy, System.currentTimeMillis(), newContent)) {
@@ -200,8 +211,9 @@ object QuoterV2Api {
         }
     }
 
-    private suspend fun Ctx.proceedFixIds(resolver: IQuoterV2APIResolver) {
-        val key = call.request.header("Access-Key")
+    private suspend fun Ctx.proceedFixIds(ctx: RequestCtx) {
+        val (_, resolver) = ctx
+        val key = call.request.header("X-Access-Key")
                 ?: return call.respond(Forbidden)
 
         if (!verifyKey(key)) {
@@ -227,6 +239,8 @@ object QuoterV2Api {
 
     fun Route.quoterV2() = route("quote") {
 
+        attachments()
+
         /**
          * <b>Arguments</b>
          *  * adder - string - adder name (required)
@@ -236,7 +250,7 @@ object QuoterV2Api {
          *  * attachments - string - list of attachments' ids separated by ;
          *
          * <b>Headers</b>
-         *  * Access-Key - access key for UADAF API (required)
+         *  * X-Access-Key - access key for UADAF API (required)
          *
          * <b>Response codes</b>
          *  * Forbidden - access key not passed
@@ -245,7 +259,9 @@ object QuoterV2Api {
          *  * OK - added
          *  * ISE - exception
          */
-        put("/") { handle({ requestAdd(it) }, respond = null) }
+        put("/") {
+            handle({ requestAdd(it) }, respond = null)
+        }
 
         /**
          * Forbidden - access key not passed
@@ -285,13 +301,13 @@ object QuoterV2Api {
          * OK - succeed
          * ISE - exception
          */
-        get("all") { handle({ it.all() }, check = false) }
+        get("all") { handle({ it.resolver.all() }, check = false) }
 
         /**
          * OK - succeed
          * ISE - exception
          */
-        get("total") { handle({ it.total() }) }
+        get("total") { handle({ it.resolver.total() }) }
 
         /**
          * NotFound - quote doesn't exists

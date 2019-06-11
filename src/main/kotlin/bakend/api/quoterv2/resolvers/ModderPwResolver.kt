@@ -9,7 +9,6 @@ import kotlin.random.Random
 object ModderPwResolver : ReadOnlyResolver() {
 
     private val attachmentPattern = """^!\[(.+)]\(.+\)$""".toRegex()
-
     //TODO: Replace with normal http framework
     private fun parse(url: String) = PARSER.parse(URL(url).openStream().bufferedReader()).obj
 
@@ -18,9 +17,12 @@ object ModderPwResolver : ReadOnlyResolver() {
     private fun unwrapJson(q: JsonObject): QuoteV2 {
         val attachments = mutableListOf<String>()
         val text = StringBuilder()
+        if(q["text"] == null) {
+            throw IllegalArgumentException("This quote doesn't exist")
+        }
         for (line in q["text"].str.split("\r\n")) {
             if (line.matches(attachmentPattern)) {
-                attachments.add(attachmentPattern[line])
+                attachments.add("https://modder.pw/${attachmentPattern[line]}")
             } else {
                 text.append(line).append('\n')
             }
@@ -52,15 +54,21 @@ object ModderPwResolver : ReadOnlyResolver() {
     }
 
     override fun random(c: Int): List<QuoteV2> {
-        val ids = mutableSetOf<Int>()
-        val total = total()
-        if(c >= total) {
-            return all()
+        val quotes = mutableListOf<QuoteV2>()
+        var total = total()
+
+        while(quotes.size < c) {
+            if(c >= total) {
+                return all()
+            }
+            val id = Random.nextInt(1, total + 1)
+            try {
+                quotes.add(byId(id))
+            } catch (e: java.lang.IllegalArgumentException) {
+                total--
+            }
         }
-        while(ids.size < c) {
-            ids.add(Random.nextInt(1, total + 1))
-        }
-        return ids.map(ModderPwResolver::byId)
+        return quotes
     }
 
     override fun all(): List<QuoteV2> {

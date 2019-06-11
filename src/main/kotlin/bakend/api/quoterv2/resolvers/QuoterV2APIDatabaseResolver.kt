@@ -20,11 +20,11 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
     }
 
     override fun byId(id: Int): QuoteV2 = transaction {
-        table.select { table.id eq id }.map(::QuoteV2).first()
+        table.select { table.id eq id }.map { table to it }.map(::QuoteV2).first()
     }
 
     override fun range(from: Int, to: Int): List<QuoteV2> = transaction {
-        table.select { (table.id greaterEq from) and (table.id lessEq to) }.map(::QuoteV2)
+        table.select { (table.id greaterEq from) and (table.id lessEq to) }.map { table to it }.map(::QuoteV2)
     }
 
     override fun total(): Int = transaction { table.selectAll().count() }
@@ -32,13 +32,13 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
     override fun random(c: Int): List<QuoteV2> = transaction {
         val total =  table.selectAll().count()
         val count = Integer.min(c, total)
-        val indexes = (0..total).toMutableList()
+        val indexes = (1..total).toMutableList()
 
-        for (i in 0..(total - count)) {
+        for (i in 1..(total - count)) {
             indexes.removeAt(Random.nextInt(indexes.size))
         }
 
-        return@transaction table.select { table.id inList indexes }.map(::QuoteV2)
+        return@transaction table.select { table.id inList indexes }.map { table to it }.map(::QuoteV2)
     }
 
     override fun fixIds() = transaction {
@@ -56,7 +56,7 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
     }
 
     override fun all(): List<QuoteV2> = transaction {
-        table.selectAll().map(::QuoteV2)
+        table.selectAll().map { table to it }.map(::QuoteV2)
     }
 
     override fun exists(id: Int): Boolean = transaction {
@@ -64,7 +64,7 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
     }
 
     override fun attach(id: Int, attachment: String): QuoterV2Api.AttachmentResult = transaction {
-        val oldAttachments = table.select { table.id eq id }.map(::QuoteV2).first().attachments.toTypedArray()
+        val oldAttachments = table.select { table.id eq id }.map { table to it }.map(::QuoteV2).first().attachments.toTypedArray()
         if (attachment in oldAttachments) return@transaction QuoterV2Api.AttachmentResult.AlreadyAttached
         val newAttachments = listOf(*oldAttachments, attachment).joinToString(";")
 
@@ -76,7 +76,7 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
     }
 
     override fun edit(idIn: Int, editedByIn: String, editedAtIn: Long, newContentIn: String) = transaction {
-        val oldContent = table.select { table.id eq idIn }.map(::QuoteV2).first().content
+        val oldContent = table.select { table.id eq idIn }.map { table to it }.map(::QuoteV2).first().content
         table.update({ table.id eq idIn }) {
             it[editedBy] = editedByIn
             it[editedAt] = editedAtIn

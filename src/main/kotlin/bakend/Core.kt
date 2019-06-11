@@ -42,7 +42,6 @@ fun main(args: Array<String>) {
                 music()
 
                 route("v2") {
-                    attachments()
                     quoterV2()
                 }
             }

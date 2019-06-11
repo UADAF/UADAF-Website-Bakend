@@ -18,7 +18,7 @@ object Users : Table("users") {
 }
 
 object Attachments : Table("attachments") {
-    val id = text("id")
+    val id = text("id").primaryKey()
     val type = text("type")
     val data = blob("data")
 }

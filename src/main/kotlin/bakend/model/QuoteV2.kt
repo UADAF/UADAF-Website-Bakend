@@ -1,7 +1,7 @@
 package bakend.model
 
+import bakend.dao.QuoterTable
 import com.google.gson.annotations.SerializedName
-import bakend.dao.QuoterV2
 import org.jetbrains.exposed.sql.ResultRow
 
 data class QuoteV2(
@@ -17,21 +17,23 @@ data class QuoteV2(
         @SerializedName("is_old") val isOld: Boolean
 ) {
 
-    constructor(row: ResultRow): this(
-            row[QuoterV2.id],
-            row[QuoterV2.adder],
-            row[QuoterV2.authors]
+    constructor(db: Pair<QuoterTable, ResultRow>): this(db.first, db.second)
+
+    constructor(table: QuoterTable, row: ResultRow): this(
+            row[table.id],
+            row[table.adder],
+            row[table.authors]
                     .split(";")
                     .filter(String::isNotBlank),
-            row[QuoterV2.dtype],
-            row[QuoterV2.content],
-            row[QuoterV2.date].millis,
-            row[QuoterV2.editedBy] ?: "null",
-            row[QuoterV2.editedAt] ?: -1,
-            row[QuoterV2.attachments]
+            row[table.dtype],
+            row[table.content],
+            row[table.date].millis,
+            row[table.editedBy] ?: "null",
+            row[table.editedAt] ?: -1,
+            row[table.attachments]
                     .split(";")
                     .filter(String::isNotBlank),
-            row[QuoterV2.isOld])
+            row[table.isOld])
 
 
 
