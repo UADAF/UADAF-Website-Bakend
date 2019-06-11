@@ -36,7 +36,7 @@ fun main(args: Array<String>) {
             }
         }
         routing {
-            route("bakend/apiend/api") {
+            route("api") {
                 quoter()
                 ith()
                 music()
@@ -46,7 +46,7 @@ fun main(args: Array<String>) {
                     quoterV2()
                 }
             }
-            route("bakend/webend/web") {
+            route("web") {
                 quoterWeb()
             }
             static("static") {
