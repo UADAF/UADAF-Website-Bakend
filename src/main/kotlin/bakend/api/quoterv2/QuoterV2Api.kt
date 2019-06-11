@@ -24,6 +24,7 @@ import io.ktor.util.pipeline.PipelineContext
 import bakend.utils.ImATeapot
 import bakend.utils.StatusCodeException
 import bakend.verifyKey
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.SQLException
 
 typealias Ctx = PipelineContext<Unit, ApplicationCall>
@@ -69,7 +70,7 @@ object QuoterV2Api {
                 ?: return call.respond(BadRequest)
 
         try {
-            val newTable = getTable(name, true)
+            val newTable = transaction { getTable(name, true) }
 
             if (newTable == null) {
                 call.respond(ImATeapot)
