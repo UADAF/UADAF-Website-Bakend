@@ -54,7 +54,7 @@ object ModderPwResolver : ReadOnlyResolver() {
     }
 
     override fun random(c: Int): List<QuoteV2> {
-        val quotes = mutableListOf<QuoteV2>()
+        val quotes = mutableSetOf<QuoteV2>()
         var total = total()
 
         while(quotes.size < c) {
@@ -68,7 +68,7 @@ object ModderPwResolver : ReadOnlyResolver() {
                 total--
             }
         }
-        return quotes
+        return quotes.toList()
     }
 
     override fun all(): List<QuoteV2> {

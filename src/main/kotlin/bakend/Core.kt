@@ -20,6 +20,8 @@ import io.ktor.server.netty.Netty
 import org.jetbrains.exposed.sql.Database
 import bakend.utils.jsonParser
 import bakend.web.QuoterWeb.quoterWeb
+import org.jetbrains.exposed.sql.transactions.TransactionManager
+import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
 import java.nio.charset.StandardCharsets
 
