@@ -24,8 +24,12 @@ import io.ktor.routing.*
 import io.ktor.util.pipeline.PipelineContext
 import bakend.utils.ImATeapot
 import bakend.utils.StatusCodeException
+import bakend.utils.json
 import bakend.verifyKey
+import com.google.gson.JsonObject
+import com.gt22.uadam.utils.str
 import io.ktor.http.Parameters
+import io.ktor.request.receive
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.SQLException
 
@@ -40,12 +44,18 @@ object QuoterV2Api {
     }
 
 
-    private data class RequestCtx(val params: Parameters, val resolver: IQuoterV2APIResolver)
+    private data class RequestCtx(val params: JsonObject, val resolver: IQuoterV2APIResolver)
+
+    fun Parameters.toJson(): JsonObject = json {
+        forEach { s, list ->
+            s to list.first()
+        }
+    }
 
     private suspend fun <T : Any> Ctx.handle(func: suspend (RequestCtx) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
         try {
-            val params = if (call.request.httpMethod == HttpMethod.Get) call.parameters else call.receiveParameters()
-            val result = func(RequestCtx(params, getResolver(params["resolver"])))
+            val params = if (call.request.httpMethod == HttpMethod.Get) call.parameters.toJson() else call.receive()
+            val result = func(RequestCtx(params, getResolver(params["resolver"].str)))
             if (respond != null) {
                 if (check && result is List<*> && result.isEmpty()) {
                     return call.respond(NotFound)
@@ -97,15 +107,15 @@ object QuoterV2Api {
             return call.respond(Forbidden)
         }
 
-        val adder = params["adder"]
+        val adder = params["adder"]?.str
                 ?: return call.respond(BadRequest)
-        val authors = params["authors"]
+        val authors = params["authors"]?.str
                 ?: return call.respond(BadRequest)
-        val displayType = params["dtype"]
+        val displayType = params["dtype"]?.str
                 ?: "text"
-        val content = params["content"]
+        val content = params["content"]?.str
                 ?: return call.respond(BadRequest)
-        val attachments = params["attachments"]?.split(";") ?: emptyList()
+        val attachments = params["attachments"]?.str?.split(";") ?: emptyList()
 
         if (displayType !in setOf("text", "dialog"))
             return call.respond(BadRequest)
@@ -128,9 +138,9 @@ object QuoterV2Api {
             return call.respond(Forbidden)
         }
 
-        val id = params["id"]?.toIntOrNull()
+        val id = params["id"]?.str?.toIntOrNull()
                 ?: return call.respond(BadRequest)
-        val attachment = params["attachment"]
+        val attachment = params["attachment"]?.str
                 ?: return call.respond(BadRequest)
 
         val quoteExists = resolver.exists(id)
@@ -153,7 +163,7 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestGet(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val id = params["id"]?.toIntOrNull()
+        val id = params["id"]?.str?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         if(!resolver.exists(id)) {
             return call.respond(NotFound)
@@ -163,9 +173,9 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestFromTo(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val from = params["from"]?.toIntOrNull()
+        val from = params["from"]?.str?.toIntOrNull()
                 ?: return call.respond(BadRequest)
-        val to = params["to"]?.toIntOrNull()
+        val to = params["to"]?.str?.toIntOrNull()
                 ?: return call.respond(BadRequest)
         if (from > to) return call.respond(BadRequest)
 
@@ -174,7 +184,7 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestRandom(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val count = (params["count"] ?: "1").toIntOrNull() ?: return call.respond(BadRequest)
+        val count = (params["count"]?.str ?: "1").toIntOrNull() ?: return call.respond(BadRequest)
         if (count < 0) return call.respond(BadRequest)
 
         handle({ resolver.random(count) }, check = false)
@@ -189,11 +199,11 @@ object QuoterV2Api {
             return call.respond(Forbidden)
         }
 
-        val id = params["id"]?.toIntOrNull()
+        val id = params["id"]?.str?.toIntOrNull()
                 ?: return call.respond(BadRequest)
-        val editedBy = params["edited_by"]
+        val editedBy = params["edited_by"]?.str
                 ?: return call.respond(BadRequest)
-        val newContent = params["new_content"]
+        val newContent = params["new_content"]?.str
                 ?: return call.respond(BadRequest)
 
         val quoteExists = resolver.exists(id)
