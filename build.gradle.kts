@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "UADAF-Website-Bakend"
-version = "1.3.2"
+version = "1.3.3"
 
 val ktorVersion = "1.0.0-beta-3"
 
