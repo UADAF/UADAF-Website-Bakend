@@ -53,6 +53,9 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
                 }
             }
         }
+
+        exec("ALTER TABLE `${table.tableName}` AUTO_INCREMENT = ${allIds.size}")
+        Unit
     }
 
     override fun all(): List<QuoteV2> = transaction {

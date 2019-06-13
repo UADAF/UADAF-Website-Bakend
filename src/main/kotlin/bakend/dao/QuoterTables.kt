@@ -4,6 +4,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.Function
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.joda.time.DateTime
+import java.lang.IllegalArgumentException
 
 object MysqlCurrentTimestamp : Function<DateTime>(DateColumnType(false)) {
 
@@ -30,6 +31,9 @@ private val registeredTables: MutableMap<String, QuoterTable> = mutableMapOf()
 fun getTable(name: String, createIfNotExist: Boolean = false): QuoterTable? {
     if (name in registeredTables) {
         return registeredTables[name]
+    }
+    if(!name.matches("[a-z\\d]+".toRegex())) {
+        throw IllegalArgumentException("Only lowercase letters and digits are allowed")
     }
     val table = QuoterTable("quoter_$name")
     return when {

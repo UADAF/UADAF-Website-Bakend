@@ -31,6 +31,7 @@ import com.gt22.uadam.utils.str
 import io.ktor.http.Parameters
 import io.ktor.request.receive
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.lang.IllegalArgumentException
 import java.sql.SQLException
 
 typealias Ctx = PipelineContext<Unit, ApplicationCall>
@@ -91,6 +92,8 @@ object QuoterV2Api {
             } else {
                 call.respond(OK)
             }
+        } catch (e: IllegalArgumentException) {
+            call.respond(BadRequest)
         } catch (e: Exception) {
             e.printStackTrace()
             call.respond(InternalServerError)
