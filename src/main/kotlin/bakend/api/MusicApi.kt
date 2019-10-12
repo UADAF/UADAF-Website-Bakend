@@ -23,6 +23,8 @@ object MusicApi {
     private val musicContext = try {
         MusicContext.create(Paths.get(config["music_dir"]!!.str))
     } catch (e: Exception) {
+        println("Music Backend Error: (Unable to initialize music context)");
+        e.printStackTrace();
         null
     }
 
