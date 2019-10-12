@@ -1,7 +1,7 @@
-package api
+package bakend.api
 
-import com.google.common.hash.Hashing
-import dao.Quoter
+import bakend.verifyKey
+import bakend.dao.Quoter
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.http.HttpStatusCode.Companion.InternalServerError
@@ -14,14 +14,11 @@ import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
-import io.ktor.util.toMap
-import kotlinx.css.em
-import model.Quote
+import bakend.model.Quote
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.nio.charset.StandardCharsets
 import java.sql.SQLException
 import java.util.Date
 import kotlin.random.Random
@@ -177,7 +174,7 @@ object QuoterApi {
             val author = params["author"] ?: return@post call.respond(BadRequest)
             val quote = params["quote"] ?: return@post call.respond(BadRequest)
 
-            if (!isKeyValid(key)) {
+            if (!verifyKey(key)) {
                 return@post call.respond(Unauthorized)
             }
             try {
@@ -195,7 +192,7 @@ object QuoterApi {
             val editedBy = params["edited_by"] ?: return@post call.respond(BadRequest)
             val newText = params["new_text"] ?: return@post call.respond(BadRequest)
 
-            if (!isKeyValid(key)) {
+            if (!verifyKey(key)) {
                 return@post call.respond(Unauthorized)
             }
 
@@ -222,9 +219,5 @@ object QuoterApi {
 //    }
 
 //    private fun buildQuoteSequence(list: List<Quote>) = list.map(::buildQuote)
-
-    private fun isKeyValid(key: String) =
-            Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString() ==
-                    "bf077926f1f26e2e3552001461c1e51ec078c7d488f1519bd570cc86f0efeb1a"
 
 }

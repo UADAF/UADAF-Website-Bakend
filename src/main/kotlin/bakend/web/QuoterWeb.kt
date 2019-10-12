@@ -1,7 +1,7 @@
-package web
+package bakend.web
 
-import api.QuoterApi
-import dao.Quoter
+import bakend.api.QuoterApi
+import bakend.dao.Quoter
 import io.ktor.application.call
 import io.ktor.html.respondHtml
 import io.ktor.http.HttpStatusCode
@@ -10,7 +10,7 @@ import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.route
 import kotlinx.html.*
-import model.Quote
+import bakend.model.Quote
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -48,7 +48,7 @@ object QuoterWeb {
             val pos = call.parameters["pos"]?.toIntOrNull() ?: return@get call.respond(HttpStatusCode.NotFound)
             try {
                 val result = transaction {
-                    dao.Quoter.select { Quoter.id eq pos }.map(::Quote)
+                    Quoter.select { Quoter.id eq pos }.map(::Quote)
                 }
                 if (result.isEmpty())  {
                     return@get call.respond(HttpStatusCode.NotFound)

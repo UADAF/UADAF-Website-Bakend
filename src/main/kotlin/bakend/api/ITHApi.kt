@@ -1,9 +1,10 @@
-package api
+package bakend.api
 
-import dao.Users
+import bakend.dao.Users
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
+import io.ktor.http.HttpStatusCode.Companion.OK
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Route
@@ -14,8 +15,9 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import utils.json
+import bakend.utils.json
 import java.sql.SQLException
+
 
 object ITHApi {
 
@@ -48,9 +50,9 @@ object ITHApi {
                         u[story] = userId
                     }
                 }
-                call.respond(HttpStatusCode.OK)
+                call.respond(OK)
             }catch (e: SQLException) {
-                call.respond(HttpStatusCode.InternalServerError)
+                call.respond(InternalServerError)
             }
         }
     }
