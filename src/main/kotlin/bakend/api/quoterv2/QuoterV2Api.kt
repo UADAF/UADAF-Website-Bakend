@@ -27,6 +27,7 @@ import bakend.utils.StatusCodeException
 import bakend.utils.json
 import bakend.verifyKey
 import com.google.gson.JsonObject
+import com.gt22.uadam.utils.contains
 import com.gt22.uadam.utils.str
 import io.ktor.http.Parameters
 import io.ktor.request.receive
@@ -56,6 +57,10 @@ object QuoterV2Api {
     private suspend fun <T : Any> Ctx.handle(func: suspend (RequestCtx) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
         try {
             val params = if (call.request.httpMethod == HttpMethod.Get) call.parameters.toJson() else call.receive()
+            if("resolver" !in params) {
+                call.respond(BadRequest)
+                return
+            }
             val result = func(RequestCtx(params, getResolver(params["resolver"].str)))
             if (respond != null) {
                 if (check && result is List<*> && result.isEmpty()) {
