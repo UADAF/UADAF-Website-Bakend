@@ -1,12 +1,15 @@
 package bakend.api.quoterv2.resolvers
 
-import com.google.gson.JsonObject
-import com.gt22.uadam.utils.*
+import bakend.api.quoterv2.resolvers.interfaces.Resolver
 import bakend.model.QuoteV2
+import com.google.gson.JsonObject
+import com.gt22.uadam.utils.PARSER
+import com.gt22.uadam.utils.int
+import com.gt22.uadam.utils.obj
+import com.gt22.uadam.utils.str
 import java.net.URL
-import kotlin.random.Random
 
-object ModderPwResolver : ReadOnlyResolver() {
+object ModderPwResolver : Resolver {
 
     private val attachmentPattern = """^!\[(.+)]\(.+\)$""".toRegex()
     //TODO: Replace with normal http framework
@@ -17,9 +20,7 @@ object ModderPwResolver : ReadOnlyResolver() {
     private fun unwrapJson(q: JsonObject): QuoteV2 {
         val attachments = mutableListOf<String>()
         val text = StringBuilder()
-        if(q["text"] == null) {
-            throw IllegalArgumentException("This quote doesn't exist")
-        }
+        requireNotNull(q["text"]) { "This quote doesn't exist" }
         for (line in q["text"].str.split("\r\n")) {
             if (line.matches(attachmentPattern)) {
                 attachments.add("https://modder.pw/${attachmentPattern[line]}")
@@ -34,15 +35,7 @@ object ModderPwResolver : ReadOnlyResolver() {
 
     override fun byId(id: Int): QuoteV2 = unwrapJson(parse("https://modder.pw/api/get.php?id=$id"))
 
-    override fun range(from: Int, to: Int): List<QuoteV2> {
-        val ret = mutableListOf<QuoteV2>()
-        for(i in from..to) {
-            ret.add(byId(i))
-        }
-        return ret
-    }
-
-    fun String.extractBetween(start: String, end: String): String {
+    private fun String.extractBetween(start: String, end: String): String {
         val nStart = indexOf(start) + start.length
         val nEnd = indexOf(end, nStart)
         return substring(nStart, nEnd)
@@ -52,36 +45,4 @@ object ModderPwResolver : ReadOnlyResolver() {
         val html = URL("https://modder.pw/new/").readText()
         return html.extractBetween("Цитата #", "</a>").toInt()
     }
-
-    override fun random(c: Int): List<QuoteV2> {
-        val quotes = mutableSetOf<QuoteV2>()
-        var total = total()
-
-        while(quotes.size < c) {
-            if(c >= total) {
-                return all()
-            }
-            val id = Random.nextInt(1, total + 1)
-            try {
-                quotes.add(byId(id))
-            } catch (e: java.lang.IllegalArgumentException) {
-                total--
-            }
-        }
-        return quotes.toList()
-    }
-
-    override fun all(): List<QuoteV2> {
-        val total = total()
-        val ret = mutableListOf<QuoteV2>()
-        for (i in 1..total) {
-            ret.add(byId(i))
-        }
-        return ret
-    }
-
-    override fun exists(id: Int): Boolean {
-        return parse("https://modder.pw/api/get.php?id=$id")["success"].bln
-    }
-
 }

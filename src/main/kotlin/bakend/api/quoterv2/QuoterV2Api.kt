@@ -2,8 +2,9 @@ package bakend.api.quoterv2
 
 import bakend.api.AttachmentsApi
 import bakend.api.AttachmentsApi.attachments
-import bakend.api.quoterv2.resolvers.IQuoterV2APIResolver
 import bakend.api.quoterv2.resolvers.ResolverRegistry
+import bakend.api.quoterv2.resolvers.interfaces.Resolver
+import bakend.api.quoterv2.resolvers.interfaces.WritableResolver
 import bakend.dao.getTable
 import bakend.utils.ImATeapot
 import bakend.utils.json
@@ -44,7 +45,7 @@ object QuoterV2Api {
     }
 
 
-    private data class RequestCtx(val params: JsonObject, val resolver: IQuoterV2APIResolver)
+    private data class RequestCtx(val params: JsonObject, val resolver: Resolver)
 
     fun Parameters.toJson(): JsonObject = json {
         forEach { s, list ->
@@ -110,7 +111,7 @@ object QuoterV2Api {
     private suspend fun Ctx.requestAdd(ctx: RequestCtx) {
         val (params, resolver) = ctx
         verifyKey()
-        require(resolver.canWrite)
+        require(resolver is WritableResolver)
         try {
             val adder = requireNotNull(params["adder"]).str
             val authors = requireNotNull(params["authors"]).str
@@ -131,9 +132,9 @@ object QuoterV2Api {
     private suspend fun Ctx.requestAttach(ctx: RequestCtx) {
         val (params, resolver) = ctx
         verifyKey()
-        require(resolver.canWrite)
+        require(resolver is WritableResolver)
 
-        val id = requireNotNull(params["id"]?.str?.toIntOrNull())
+        val id = requireNotNull(params["id"]).str.toInt()
         val attachment = requireNotNull(params["attachment"]).str
 
         val quoteExists = resolver.exists(id)
@@ -157,7 +158,7 @@ object QuoterV2Api {
     private suspend fun Ctx.requestGet(ctx: RequestCtx) {
         val (params, resolver) = ctx
 
-        val id = requireNotNull(params["id"]?.str?.toIntOrNull())
+        val id = requireNotNull(params["id"]).str.toInt()
         if (!resolver.exists(id)) {
             return call.respond(NotFound)
         }
@@ -167,8 +168,8 @@ object QuoterV2Api {
     private suspend fun Ctx.requestFromTo(ctx: RequestCtx) {
         val (params, resolver) = ctx
 
-        val from = requireNotNull(params["from"]?.str?.toIntOrNull())
-        val to = requireNotNull(params["to"]?.str?.toIntOrNull())
+        val from = requireNotNull(params["from"]).str.toInt()
+        val to = requireNotNull(params["to"]).str.toInt()
         require(from <= to)
 
         handle({ resolver.range(from, to) }, check = false)
@@ -177,7 +178,7 @@ object QuoterV2Api {
     private suspend fun Ctx.requestRandom(ctx: RequestCtx) {
         val (params, resolver) = ctx
 
-        val count = requireNotNull((params["count"]?.str ?: "1").toIntOrNull())
+        val count = (params["count"]?.str ?: "1").toInt()
         require(count >= 0)
 
         handle({ resolver.random(count) }, check = false)
@@ -186,9 +187,9 @@ object QuoterV2Api {
     private suspend fun Ctx.proceedEdit(ctx: RequestCtx) {
         val (params, resolver) = ctx
         verifyKey()
-        require(resolver.canWrite)
+        require(resolver is WritableResolver)
 
-        val id = requireNotNull(params["id"]?.str?.toIntOrNull())
+        val id = requireNotNull(params["id"]).str.toInt()
         val editedBy = requireNotNull(params["edited_by"]).str
         val newContent = requireNotNull(params["new_content"]).str
 
@@ -209,7 +210,7 @@ object QuoterV2Api {
     private suspend fun Ctx.proceedFixIds(ctx: RequestCtx) {
         val (_, resolver) = ctx
         verifyKey()
-        require(resolver.canWrite)
+        require(resolver is WritableResolver)
 
         try {
             resolver.fixIds()

@@ -1,11 +1,12 @@
 package bakend.api.quoterv2.resolvers
 
+import bakend.api.quoterv2.resolvers.interfaces.Resolver
 import bakend.dao.QuoterV2
 import bakend.dao.getTable
 import org.jetbrains.exposed.sql.transactions.transaction
 
 
-typealias ResolverCreator = (String) -> IQuoterV2APIResolver
+typealias ResolverCreator = (String) -> Resolver
 typealias ResolverSpec = Pair<(String) -> Boolean, ResolverCreator>
 
 object ResolverRegistry {
@@ -13,7 +14,7 @@ object ResolverRegistry {
     private val resolvers = mutableListOf<ResolverSpec>()
 
 
-    fun registerSimple(name: String, resolver: IQuoterV2APIResolver): ResolverSpec {
+    fun registerSimple(name: String, resolver: Resolver): ResolverSpec {
         return register({ it == name }) { resolver }
     }
 
@@ -31,7 +32,7 @@ object ResolverRegistry {
         return s
     }
 
-    fun getResolver(spec: String): IQuoterV2APIResolver {
+    fun getResolver(spec: String): Resolver {
         return requireNotNull(resolvers.firstOrNull { it.first(spec) }).second(spec)
     }
 
