@@ -5,6 +5,13 @@ import bakend.api.AttachmentsApi.attachments
 import bakend.api.quoterv2.resolvers.IQuoterV2APIResolver
 import bakend.api.quoterv2.resolvers.ResolverRegistry
 import bakend.dao.getTable
+import bakend.utils.ImATeapot
+import bakend.utils.StatusCodeException
+import bakend.utils.json
+import bakend.verifyKey
+import com.google.gson.JsonObject
+import com.gt22.uadam.utils.contains
+import com.gt22.uadam.utils.str
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpMethod
@@ -16,23 +23,15 @@ import io.ktor.http.HttpStatusCode.Companion.InternalServerError
 import io.ktor.http.HttpStatusCode.Companion.NotFound
 import io.ktor.http.HttpStatusCode.Companion.OK
 import io.ktor.http.HttpStatusCode.Companion.Unauthorized
+import io.ktor.http.Parameters
 import io.ktor.request.header
 import io.ktor.request.httpMethod
+import io.ktor.request.receive
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.*
 import io.ktor.util.pipeline.PipelineContext
-import bakend.utils.ImATeapot
-import bakend.utils.StatusCodeException
-import bakend.utils.json
-import bakend.verifyKey
-import com.google.gson.JsonObject
-import com.gt22.uadam.utils.contains
-import com.gt22.uadam.utils.str
-import io.ktor.http.Parameters
-import io.ktor.request.receive
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.lang.IllegalArgumentException
 import java.sql.SQLException
 
 typealias Ctx = PipelineContext<Unit, ApplicationCall>
@@ -57,7 +56,7 @@ object QuoterV2Api {
     private suspend fun <T : Any> Ctx.handle(func: suspend (RequestCtx) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
         try {
             val params = if (call.request.httpMethod == HttpMethod.Get) call.parameters.toJson() else call.receive()
-            if("resolver" !in params) {
+            if ("resolver" !in params) {
                 call.respond(BadRequest)
                 return
             }
@@ -70,26 +69,33 @@ object QuoterV2Api {
             }
         } catch (e: StatusCodeException) {
             call.respond(e.code)
+        } catch (e: IllegalArgumentException) {
+            call.respond(BadRequest)
         } catch (e: Exception) {
             e.printStackTrace()
             call.respond(InternalServerError)
         }
     }
 
-    private suspend fun Ctx.requestNewRepo() {
+    private suspend fun Ctx.verifyKey(): Boolean {
         val key = call.request.header("X-Access-Key")
-                ?: return call.respond(Unauthorized)
-
-        if (!verifyKey(key)) {
-            return call.respond(Forbidden)
+        if (key == null) {
+            call.respond(Unauthorized)
+            return false
         }
+        if (!verifyKey(key)) {
+            call.respond(Forbidden)
+            return false
+        }
+        return true
+    }
 
+    private suspend fun Ctx.requestNewRepo() {
+        verifyKey()
         val params = call.receiveParameters()
-
-        val name = params["name"]
-                ?: return call.respond(BadRequest)
-
         try {
+            val name = requireNotNull(params["name"])
+
             val newTable = transaction { getTable(name, true) }
 
             if (newTable == null) {
@@ -108,27 +114,16 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestAdd(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val key = call.request.header("X-Access-Key")
-                ?: return call.respond(Unauthorized)
-
-        if (!verifyKey(key)) {
-            return call.respond(Forbidden)
-        }
-
-        val adder = params["adder"]?.str
-                ?: return call.respond(BadRequest)
-        val authors = params["authors"]?.str
-                ?: return call.respond(BadRequest)
-        val displayType = params["dtype"]?.str
-                ?: "text"
-        val content = params["content"]?.str
-                ?: return call.respond(BadRequest)
-        val attachments = params["attachments"]?.str?.split(";") ?: emptyList()
-
-        if (displayType !in setOf("text", "dialog"))
-            return call.respond(BadRequest)
-
+        verifyKey()
         try {
+            val adder = requireNotNull(params["adder"]).str
+            val authors = requireNotNull(params["authors"]).str
+            val displayType = params["dtype"]?.str ?: "text"
+            val content = requireNotNull(params["content"]).str
+            val attachments = params["attachments"]?.str?.split(";") ?: emptyList()
+
+            require(displayType in setOf("text", "dialog"))
+
             resolver.add(adder, authors, displayType, content, attachments)
             call.respond(OK)
         } catch (e: SQLException) {
@@ -139,17 +134,9 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestAttach(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val key = call.request.header("X-Access-Key")
-                ?: return call.respond(Unauthorized)
-
-        if (!verifyKey(key)) {
-            return call.respond(Forbidden)
-        }
-
-        val id = params["id"]?.str?.toIntOrNull()
-                ?: return call.respond(BadRequest)
-        val attachment = params["attachment"]?.str
-                ?: return call.respond(BadRequest)
+        verifyKey()
+        val id = requireNotNull(params["id"]?.str?.toIntOrNull())
+        val attachment = requireNotNull(params["attachment"]).str
 
         val quoteExists = resolver.exists(id)
         val attachmentExists = AttachmentsApi.exists(attachment)
@@ -159,9 +146,9 @@ object QuoterV2Api {
 
         return try {
             when (resolver.attach(id, attachment)) {
-                QuoterV2Api.AttachmentResult.Attached -> call.respond(OK)
-                QuoterV2Api.AttachmentResult.AlreadyAttached -> call.respond(Conflict)
-                QuoterV2Api.AttachmentResult.Error -> call.respond(NotFound)
+                AttachmentResult.Attached -> call.respond(OK)
+                AttachmentResult.AlreadyAttached -> call.respond(Conflict)
+                AttachmentResult.Error -> call.respond(NotFound)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -171,9 +158,8 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestGet(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val id = params["id"]?.str?.toIntOrNull()
-                ?: return call.respond(BadRequest)
-        if(!resolver.exists(id)) {
+        val id = requireNotNull(params["id"]?.str?.toIntOrNull())
+        if (!resolver.exists(id)) {
             return call.respond(NotFound)
         }
         handle({ resolver.byId(id) })
@@ -181,42 +167,30 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestFromTo(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val from = params["from"]?.str?.toIntOrNull()
-                ?: return call.respond(BadRequest)
-        val to = params["to"]?.str?.toIntOrNull()
-                ?: return call.respond(BadRequest)
-        if (from > to) return call.respond(BadRequest)
+        val from = requireNotNull(params["from"]?.str?.toIntOrNull())
+        val to = requireNotNull(params["to"]?.str?.toIntOrNull())
+        require(from <= to)
 
         handle({ resolver.range(from, to) }, check = false)
     }
 
     private suspend fun Ctx.requestRandom(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val count = (params["count"]?.str ?: "1").toIntOrNull() ?: return call.respond(BadRequest)
-        if (count < 0) return call.respond(BadRequest)
+        val count = requireNotNull((params["count"]?.str ?: "1").toIntOrNull())
+        require(count >= 0)
 
         handle({ resolver.random(count) }, check = false)
     }
 
     private suspend fun Ctx.proceedEdit(ctx: RequestCtx) {
         val (params, resolver) = ctx
-        val key = call.request.header("X-Access-Key")
-                ?: return call.respond(Unauthorized)
-
-        if (!verifyKey(key)) {
-            return call.respond(Forbidden)
-        }
-
-        val id = params["id"]?.str?.toIntOrNull()
-                ?: return call.respond(BadRequest)
-        val editedBy = params["edited_by"]?.str
-                ?: return call.respond(BadRequest)
-        val newContent = params["new_content"]?.str
-                ?: return call.respond(BadRequest)
+        verifyKey()
+        val id = requireNotNull(params["id"]?.str?.toIntOrNull())
+        val editedBy = requireNotNull(params["edited_by"]).str
+        val newContent = requireNotNull(params["new_content"]).str
 
         val quoteExists = resolver.exists(id)
-        if(!quoteExists) return call.respond(NotFound)
-
+        if (!quoteExists) return call.respond(NotFound)
         try {
             return if (resolver.edit(id, editedBy, System.currentTimeMillis(), newContent)) {
                 call.respond(OK)
@@ -231,12 +205,7 @@ object QuoterV2Api {
 
     private suspend fun Ctx.proceedFixIds(ctx: RequestCtx) {
         val (_, resolver) = ctx
-        val key = call.request.header("X-Access-Key")
-                ?: return call.respond(Forbidden)
-
-        if (!verifyKey(key)) {
-            return call.respond(Unauthorized)
-        }
+        verifyKey()
 
         try {
             resolver.fixIds()
