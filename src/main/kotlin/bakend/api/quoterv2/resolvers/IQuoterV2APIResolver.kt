@@ -26,4 +26,6 @@ interface IQuoterV2APIResolver {
 
     fun fixIds()
 
+    val canWrite: Boolean
+
 }

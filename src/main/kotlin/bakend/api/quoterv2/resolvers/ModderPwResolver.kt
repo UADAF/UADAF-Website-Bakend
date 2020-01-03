@@ -83,4 +83,5 @@ object ModderPwResolver : ReadOnlyResolver() {
     override fun exists(id: Int): Boolean {
         return parse("https://modder.pw/api/get.php?id=$id")["success"].bln
     }
+
 }

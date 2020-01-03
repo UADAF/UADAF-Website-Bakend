@@ -20,4 +20,6 @@ abstract class ReadOnlyResolver : IQuoterV2APIResolver {
         throw NotImplementedError("Can't fix ids in ReadOnlyResolver")
     }
 
+    override val canWrite = false
+
 }

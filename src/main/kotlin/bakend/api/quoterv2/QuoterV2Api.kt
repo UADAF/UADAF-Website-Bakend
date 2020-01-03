@@ -6,7 +6,6 @@ import bakend.api.quoterv2.resolvers.IQuoterV2APIResolver
 import bakend.api.quoterv2.resolvers.ResolverRegistry
 import bakend.dao.getTable
 import bakend.utils.ImATeapot
-import bakend.utils.StatusCodeException
 import bakend.utils.json
 import bakend.verifyKey
 import com.google.gson.JsonObject
@@ -56,19 +55,15 @@ object QuoterV2Api {
     private suspend fun <T : Any> Ctx.handle(func: suspend (RequestCtx) -> T, check: Boolean = true, respond: ((T) -> Any)? = { it }) {
         try {
             val params = if (call.request.httpMethod == HttpMethod.Get) call.parameters.toJson() else call.receive()
-            if ("resolver" !in params) {
-                call.respond(BadRequest)
-                return
-            }
-            val result = func(RequestCtx(params, getResolver(params["resolver"].str)))
+            require("resolver" in params)
+
+            val result = func(RequestCtx(params, ResolverRegistry.getResolver(params["resolver"].str)))
             if (respond != null) {
                 if (check && result is List<*> && result.isEmpty()) {
                     return call.respond(NotFound)
                 }
                 call.respond(respond(result))
             }
-        } catch (e: StatusCodeException) {
-            call.respond(e.code)
         } catch (e: IllegalArgumentException) {
             call.respond(BadRequest)
         } catch (e: Exception) {
@@ -115,6 +110,7 @@ object QuoterV2Api {
     private suspend fun Ctx.requestAdd(ctx: RequestCtx) {
         val (params, resolver) = ctx
         verifyKey()
+        require(resolver.canWrite)
         try {
             val adder = requireNotNull(params["adder"]).str
             val authors = requireNotNull(params["authors"]).str
@@ -135,6 +131,8 @@ object QuoterV2Api {
     private suspend fun Ctx.requestAttach(ctx: RequestCtx) {
         val (params, resolver) = ctx
         verifyKey()
+        require(resolver.canWrite)
+
         val id = requireNotNull(params["id"]?.str?.toIntOrNull())
         val attachment = requireNotNull(params["attachment"]).str
 
@@ -158,6 +156,7 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestGet(ctx: RequestCtx) {
         val (params, resolver) = ctx
+
         val id = requireNotNull(params["id"]?.str?.toIntOrNull())
         if (!resolver.exists(id)) {
             return call.respond(NotFound)
@@ -167,6 +166,7 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestFromTo(ctx: RequestCtx) {
         val (params, resolver) = ctx
+
         val from = requireNotNull(params["from"]?.str?.toIntOrNull())
         val to = requireNotNull(params["to"]?.str?.toIntOrNull())
         require(from <= to)
@@ -176,6 +176,7 @@ object QuoterV2Api {
 
     private suspend fun Ctx.requestRandom(ctx: RequestCtx) {
         val (params, resolver) = ctx
+
         val count = requireNotNull((params["count"]?.str ?: "1").toIntOrNull())
         require(count >= 0)
 
@@ -185,6 +186,8 @@ object QuoterV2Api {
     private suspend fun Ctx.proceedEdit(ctx: RequestCtx) {
         val (params, resolver) = ctx
         verifyKey()
+        require(resolver.canWrite)
+
         val id = requireNotNull(params["id"]?.str?.toIntOrNull())
         val editedBy = requireNotNull(params["edited_by"]).str
         val newContent = requireNotNull(params["new_content"]).str
@@ -206,6 +209,7 @@ object QuoterV2Api {
     private suspend fun Ctx.proceedFixIds(ctx: RequestCtx) {
         val (_, resolver) = ctx
         verifyKey()
+        require(resolver.canWrite)
 
         try {
             resolver.fixIds()
@@ -213,14 +217,6 @@ object QuoterV2Api {
         } catch (e: Exception) {
             e.printStackTrace()
             call.respond(InternalServerError)
-        }
-    }
-
-    private fun getResolver(spec: String?): IQuoterV2APIResolver {
-        try {
-            return ResolverRegistry.getResolver(spec ?: "uadaf")
-        } catch (e: NoSuchElementException) {
-            throw StatusCodeException(BadRequest)
         }
     }
 

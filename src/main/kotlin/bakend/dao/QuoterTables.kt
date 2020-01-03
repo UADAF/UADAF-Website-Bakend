@@ -32,9 +32,7 @@ fun getTable(name: String, createIfNotExist: Boolean = false): QuoterTable? {
     if (name in registeredTables) {
         return registeredTables[name]
     }
-    if(!name.matches("[a-z\\d]+".toRegex())) {
-        throw IllegalArgumentException("Only lowercase letters and digits are allowed")
-    }
+    require(name.matches("[a-z\\d]+".toRegex())) { "Only lowercase letters and digits are allowed" }
     val table = QuoterTable("quoter_$name")
     return when {
         table.exists() -> {

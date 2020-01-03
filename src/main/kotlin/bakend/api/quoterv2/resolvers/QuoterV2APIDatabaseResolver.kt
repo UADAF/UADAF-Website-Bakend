@@ -88,5 +88,6 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : IQuoterV2API
         } != 0
     }
 
+    override val canWrite = true
 
 }
