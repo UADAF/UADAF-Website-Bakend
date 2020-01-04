@@ -66,7 +66,7 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : WritableReso
         exec("ALTER TABLE `${table.tableName}` AUTO_INCREMENT = ${allIds.size}")
     }
 
-    private fun SqlExpressionBuilder.matchAdder(adder: String) = table.adder like adder
+    private fun SqlExpressionBuilder.matchAdder(adder: String) = table.adder like "%${adder}%"
 
     private fun SqlExpressionBuilder.matchAuthors(authors: List<String>): Op<Boolean> {
         require(authors.isNotEmpty())
