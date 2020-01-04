@@ -4,6 +4,7 @@ import bakend.api.AttachmentsApi
 import bakend.api.AttachmentsApi.attachments
 import bakend.api.quoterv2.resolvers.ResolverRegistry
 import bakend.api.quoterv2.resolvers.interfaces.Resolver
+import bakend.api.quoterv2.resolvers.interfaces.SearchableResolver
 import bakend.api.quoterv2.resolvers.interfaces.WritableResolver
 import bakend.dao.getTable
 import bakend.utils.ImATeapot
@@ -221,6 +222,17 @@ object QuoterV2Api {
         }
     }
 
+    private suspend fun Ctx.processSearch(ctx: RequestCtx) {
+        val (params, resolver) = ctx
+        require(resolver is SearchableResolver)
+
+        val adder = params["adder"]?.str
+        val authors = params["authors"]?.str?.split(";")?.filter(String::isNotBlank)
+        val content = params["content"]?.str
+
+        handle({ resolver.search(adder, authors, content) }, check = false)
+    }
+
     fun Route.quoterV2() = route("quote") {
 
         attachments()
@@ -282,16 +294,25 @@ object QuoterV2Api {
         get("random/{count?}") { handle({ requestRandom(it) }, respond = null) }
 
         /**
+         * BadRequest - params not passed or invalid
          * OK - succeed
          * ISE - exception
          */
         get("all") { handle({ it.resolver.all() }, check = false) }
 
         /**
+         * BadRequest - params not passed or invalid
          * OK - succeed
          * ISE - exception
          */
         get("total") { handle({ it.resolver.total() }) }
+
+        /**
+         * BadRequest - params not passed or invalid
+         * OK - succeed
+         * ISE - exception
+         */
+        get("search") { handle( { processSearch(it) }, respond = null ) }
 
         /**
          * NotFound - quote doesn't exists

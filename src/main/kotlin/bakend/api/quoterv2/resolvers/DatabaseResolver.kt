@@ -1,16 +1,14 @@
 package bakend.api.quoterv2.resolvers
 
 import bakend.api.quoterv2.QuoterV2Api
+import bakend.api.quoterv2.resolvers.interfaces.SearchableResolver
 import bakend.api.quoterv2.resolvers.interfaces.WritableResolver
 import bakend.dao.QuoterTable
 import bakend.model.QuoteV2
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 
-class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : WritableResolver {
+class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : WritableResolver, SearchableResolver {
 
     override fun total(): Int = transaction { table.selectAll().count() }
 
@@ -66,5 +64,29 @@ class QuoterV2APIDatabaseResolver(private val table: QuoterTable) : WritableReso
         }
 
         exec("ALTER TABLE `${table.tableName}` AUTO_INCREMENT = ${allIds.size}")
+    }
+
+    private fun SqlExpressionBuilder.matchAdder(adder: String) = table.adder like adder
+
+    private fun SqlExpressionBuilder.matchAuthors(authors: List<String>): Op<Boolean> {
+        require(authors.isNotEmpty())
+        return authors.map { table.authors like "%${it}%" }.reduce { a, b -> a and b }
+    }
+
+    private fun SqlExpressionBuilder.matchContent(content: String) = table.content like "%${content}%"
+
+    override fun search(adder: String?, authors: List<String>?, content: String?): List<QuoteV2> {
+        return if(adder == null && authors.isNullOrEmpty() && content == null) {
+            all()
+        } else {
+            transaction {
+                table.select {
+                    val adderM = if (adder != null) matchAdder(adder) else null
+                    val authorsM = if (!authors.isNullOrEmpty()) matchAuthors(authors) else null
+                    val contentM = if (content != null) matchContent(content) else null
+                    listOfNotNull(adderM, authorsM, contentM).reduce { a, b -> a and b }
+                }.map { table to it }.map(::QuoteV2)
+            }
+        }
     }
 }
