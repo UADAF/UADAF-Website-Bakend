@@ -1,13 +1,14 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "UADAF-Website-Bakend"
-version = "1.3.4-test"
+version = "1.3.5"
 
 val ktorVersion = "1.0.0-beta-3"
 
 plugins {
     application
     kotlin("jvm") version "1.3.31"
+    id("com.github.johnrengelman.shadow") version "4.0.4"
 }
 
 repositories {
@@ -29,7 +30,7 @@ tasks.withType<KotlinCompile>().all {
 }
 
 application {
-    mainClassName = "CoreKt"
+    mainClassName = "bakend.CoreKt"
     applicationName = "UADAF-Website-Bakend"
 }
 
@@ -47,18 +48,4 @@ dependencies {
     compile("org.jetbrains:kotlin-css-jvm:1.0.0-pre.31-kotlin-1.2.41")
 
     testCompile(group = "junit", name = "junit", version = "4.12")
-}
-
-tasks {
-    withType<Jar> {
-        manifest {
-            attributes(mapOf("Main-Class" to "bakend.CoreKt"))
-        }
-        archiveName = "${application.applicationName}-$version.jar"
-        from(configurations.compile.map {
-            if (it.isDirectory)
-                it
-            else zipTree(it)
-        })
-    }
 }
