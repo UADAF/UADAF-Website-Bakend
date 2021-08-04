@@ -9,7 +9,6 @@ import com.google.common.hash.Hashing
 import com.gt22.uadam.utils.obj
 import com.gt22.uadam.utils.str
 import io.ktor.application.install
-import io.ktor.features.ContentNegotiation
 import io.ktor.gson.gson
 import io.ktor.http.content.files
 import io.ktor.http.content.static
@@ -20,6 +19,7 @@ import io.ktor.server.netty.Netty
 import org.jetbrains.exposed.sql.Database
 import bakend.utils.jsonParser
 import bakend.web.QuoterWeb.quoterWeb
+import io.ktor.features.*
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
@@ -36,6 +36,9 @@ fun main(args: Array<String>) {
             gson {
                 setPrettyPrinting()
             }
+        }
+        install(CORS) {
+            anyHost()
         }
         routing {
             route("api") {
