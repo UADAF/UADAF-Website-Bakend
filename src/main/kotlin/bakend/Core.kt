@@ -1,6 +1,5 @@
 package bakend
 
-import bakend.api.AttachmentsApi.attachments
 import bakend.api.ITHApi.ith
 import bakend.api.MusicApi.music
 import bakend.api.QuoterApi.quoter
@@ -8,26 +7,24 @@ import bakend.api.quoterv2.QuoterV2Api.quoterV2
 import com.google.common.hash.Hashing
 import com.gt22.uadam.utils.obj
 import com.gt22.uadam.utils.str
-import io.ktor.application.install
-import io.ktor.gson.gson
-import io.ktor.http.content.files
-import io.ktor.http.content.static
-import io.ktor.routing.route
-import io.ktor.routing.routing
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
 import org.jetbrains.exposed.sql.Database
-import bakend.utils.jsonParser
 import bakend.web.QuoterWeb.quoterWeb
-import io.ktor.features.*
-import org.jetbrains.exposed.sql.transactions.TransactionManager
-import org.jetbrains.exposed.sql.transactions.transaction
+import com.google.gson.JsonParser
+import io.ktor.serialization.gson.*
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.http.content.*
+import io.ktor.server.netty.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.routing.*
+import io.ktor.server.routing.*
 import java.io.File
 import java.nio.charset.StandardCharsets
 
 
-val config = jsonParser.parse(File("config.json").readText()).obj
-private val connectUrl = "jdbc:mysql://${config["host"]!!.str}:3306/${config["database"]!!.str}?useUnicode=yes&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=UTC"
+val config = JsonParser.parseString(File("config.json").readText()).obj
+val jdbcParams = config["params"] ?: ""
+private val connectUrl = "jdbc:mysql://${config["host"]!!.str}:3306/${config["database"]!!.str}?useUnicode=yes&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=UTC$jdbcParams"
 
 fun main(args: Array<String>) {
 

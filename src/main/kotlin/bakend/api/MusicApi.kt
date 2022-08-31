@@ -6,15 +6,13 @@ import com.google.gson.JsonPrimitive
 import com.gt22.uadam.data.Album
 import com.gt22.uadam.data.BaseData
 import com.gt22.uadam.data.MusicContext
-import io.ktor.application.call
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
-import io.ktor.response.respond
-import io.ktor.routing.Route
-import io.ktor.routing.get
-import io.ktor.routing.route
 import bakend.utils.ImATeapot
 import bakend.utils.json
 import com.gt22.uadam.utils.str
+import io.ktor.server.application.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import java.nio.file.Paths
 
 
